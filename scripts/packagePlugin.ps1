@@ -135,6 +135,6 @@ $uploadItems =
 Compress-Archive -Path $uploadItems -DestinationPath $uploadZipPath -CompressionLevel Optimal
 
 Write-Host "Package directory: $stageRoot"
-Write-Host "Package archive: $zipPath"
-Write-Host "Plugin upload archive: $uploadZipPath"
+Write-Host "Local UI package archive: $zipPath"
+Write-Host "Approved-submission upload archive: $uploadZipPath"
 Write-Host "Runtime SHA256: $((Get-FileHash -LiteralPath $ExecutablePath -Algorithm SHA256).Hash)"

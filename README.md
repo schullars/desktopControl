@@ -267,14 +267,19 @@ cmake --install build-vs2019 --config Release --prefix build-vs2019\install
 .\scripts\packagePlugin.ps1
 ```
 
-The package is written under `build-vs2019\package`. Use
-`desktopctl-plugin-0.9.3-upload.zip` with the desktop Plugins directory command
-`Add > Upload plugin archive`; after upload, select `Install plugin` on the parsed plugin details
-page. The separate `desktopctl-plugin-0.9.3-windows-x64.zip` package supports the PowerShell
-installer workflow. Its marketplace uses `./plugins/desktopctl`, and `mcp.json` launches
+The package is written under `build-vs2019\package`. Extract
+`desktopctl-plugin-0.9.3-windows-x64.zip`, open the desktop Plugins directory, select
+`Add > Add a marketplace`, and choose the extracted package root as a local folder. Install
+Desktop Control from the `Desktop Control Local` marketplace, restart the desktop app, and test
+the plugin in a new local chat. The same package also supports the PowerShell installer workflow.
+Its marketplace uses `./plugins/desktopctl`, and `mcp.json` launches
 `${PLUGIN_ROOT}/bin/desktopctl.exe`; no development directory, fixed drive letter, or source-tree
 path is embedded. The PowerShell package installer copies the marketplace to a current-user
 location and uses `codex plugin marketplace add` followed by `codex plugin add`.
+
+`desktopctl-plugin-0.9.3-upload.zip` is reserved for an approved local-MCP submission workflow.
+Routine personal installation must use the local marketplace package because archive upload can
+exclude local stdio MCP configuration when the submitting organization is not allowlisted.
 
 ## Exit codes
 
