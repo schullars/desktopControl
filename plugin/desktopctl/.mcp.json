@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "desktopctl": {
+      "command": "${PLUGIN_ROOT}/bin/desktopctl.exe",
+      "args": ["mcp", "serve"],
+      "cwd": "${PLUGIN_ROOT}",
+      "enabled": true
+    }
+  }
+}

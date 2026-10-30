@@ -31,6 +31,27 @@ if ($cmakeContents -notmatch 'project\(desktopctl VERSION ([0-9]+\.[0-9]+\.[0-9]
 if ($Matches[1] -ne $packageVersion) {
     throw "Version mismatch: CMake reports $($Matches[1]), plugin.json reports $packageVersion"
 }
+$compatibilityManifestPath =
+    Join-Path $repositoryRoot "plugin\desktopctl\.codex-plugin\plugin.json"
+$compatibilityMcpPath = Join-Path $repositoryRoot "plugin\desktopctl\.mcp.json"
+if (-not (Test-Path -LiteralPath $compatibilityManifestPath -PathType Leaf)) {
+    throw "Codex compatibility manifest not found: $compatibilityManifestPath"
+}
+if (-not (Test-Path -LiteralPath $compatibilityMcpPath -PathType Leaf)) {
+    throw "Codex compatibility MCP configuration not found: $compatibilityMcpPath"
+}
+$compatibilityManifest =
+    Get-Content -LiteralPath $compatibilityManifestPath -Raw | ConvertFrom-Json
+if ([string]$compatibilityManifest.version -ne $packageVersion) {
+    throw "Version mismatch between plugin.json and .codex-plugin/plugin.json"
+}
+if ([string]$compatibilityManifest.mcpServers -ne "./.mcp.json") {
+    throw 'The Codex compatibility manifest must declare "mcpServers": "./.mcp.json"'
+}
+$compatibilityMcp = Get-Content -LiteralPath $compatibilityMcpPath -Raw | ConvertFrom-Json
+if ($null -eq $compatibilityMcp.mcpServers.desktopctl) {
+    throw "The Codex compatibility MCP configuration must declare desktopctl"
+}
 
 $packageName = "desktopctl-plugin-$packageVersion-windows-x64"
 $stageRoot = Join-Path $OutputDirectory $packageName
@@ -49,7 +70,10 @@ $pluginDestination = Join-Path $stageRoot "plugins\desktopctl"
 $marketplaceDestination = Join-Path $stageRoot ".agents\plugins"
 New-Item -ItemType Directory -Force -Path $pluginDestination | Out-Null
 New-Item -ItemType Directory -Force -Path $marketplaceDestination | Out-Null
-Copy-Item -Path (Join-Path $repositoryRoot "plugin\desktopctl\*") -Destination $pluginDestination -Recurse -Force
+Get-ChildItem -LiteralPath (Join-Path $repositoryRoot "plugin\desktopctl") -Force |
+    ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination $pluginDestination -Recurse -Force
+    }
 New-Item -ItemType Directory -Force -Path (Join-Path $pluginDestination "bin") | Out-Null
 Copy-Item -LiteralPath $ExecutablePath -Destination (Join-Path $pluginDestination "bin\desktopctl.exe") -Force
 Copy-Item -LiteralPath (Join-Path $repositoryRoot "plugin\marketplace.json") -Destination (Join-Path $marketplaceDestination "marketplace.json") -Force
@@ -68,12 +92,15 @@ Set-Content -LiteralPath (Join-Path $stageRoot "checksums.sha256") -Value $check
 if (Test-Path -LiteralPath $zipPath) {
     Remove-Item -LiteralPath $zipPath -Force
 }
-Compress-Archive -Path (Join-Path $stageRoot "*") -DestinationPath $zipPath -CompressionLevel Optimal
+$packageItems = Get-ChildItem -LiteralPath $stageRoot -Force | Select-Object -ExpandProperty FullName
+Compress-Archive -Path $packageItems -DestinationPath $zipPath -CompressionLevel Optimal
 
 if (Test-Path -LiteralPath $uploadZipPath) {
     Remove-Item -LiteralPath $uploadZipPath -Force
 }
-Compress-Archive -Path (Join-Path $pluginDestination "*") -DestinationPath $uploadZipPath -CompressionLevel Optimal
+$uploadItems =
+    Get-ChildItem -LiteralPath $pluginDestination -Force | Select-Object -ExpandProperty FullName
+Compress-Archive -Path $uploadItems -DestinationPath $uploadZipPath -CompressionLevel Optimal
 
 Write-Host "Package directory: $stageRoot"
 Write-Host "Package archive: $zipPath"

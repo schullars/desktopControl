@@ -268,9 +268,9 @@ cmake --install build-vs2019 --config Release --prefix build-vs2019\install
 ```
 
 The package is written under `build-vs2019\package`. Use
-`desktopctl-plugin-0.9.1-upload.zip` with the desktop Plugins directory command
+`desktopctl-plugin-0.9.2-upload.zip` with the desktop Plugins directory command
 `Add > Upload plugin archive`; after upload, select `Install plugin` on the parsed plugin details
-page. The separate `desktopctl-plugin-0.9.1-windows-x64.zip` package supports the PowerShell
+page. The separate `desktopctl-plugin-0.9.2-windows-x64.zip` package supports the PowerShell
 installer workflow. Its marketplace uses `./plugins/desktopctl`, and `mcp.json` launches
 `${PLUGIN_ROOT}/bin/desktopctl.exe`; no development directory, fixed drive letter, or source-tree
 path is embedded. The PowerShell package installer copies the marketplace to a current-user
