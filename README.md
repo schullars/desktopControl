@@ -195,6 +195,29 @@ The host automatically closes the indicator after three minutes without an accep
 command. Run `desktopctl session stop` to close it immediately. Only one indicator instance is
 allowed in a login session.
 
+## Keyboard combinations and literal text
+
+Hotkeys accept separate key names or one plus-delimited expression. These two commands are
+equivalent:
+
+```text
+desktopctl keyboard hotkey ctrl shift escape
+desktopctl keyboard hotkey ctrl+shift+escape
+```
+
+DesktopCTL sends physical scan-code input using the foreground window's active keyboard layout,
+holds the complete combination briefly, and releases keys in reverse order. Use `keyboard type`
+for literal text, symbols, and passwords because a physical shortcut such as Shift+2 does not
+produce the same symbol on every layout:
+
+```text
+desktopctl keyboard type "@"
+```
+
+Activate the intended window immediately before keyboard input. Place the caret explicitly with
+Ctrl+A before replacement, End or Ctrl+End before appending, and Home or Ctrl+Home before inserting
+at the beginning. Verify the active window and resulting text or UI state afterward.
+
 ## Application discovery and launch
 
 `app list` reads the current user's Windows AppsFolder and writes desktop and Microsoft Store
@@ -268,7 +291,7 @@ cmake --install build-vs2019 --config Release --prefix build-vs2019\install
 ```
 
 The package is written under `build-vs2019\package`. Extract
-`desktopctl-plugin-0.9.3-windows-x64.zip`, open the desktop Plugins directory, select
+`desktopctl-plugin-0.9.4-windows-x64.zip`, open the desktop Plugins directory, select
 `Add > Add a marketplace`, and choose the extracted package root as a local folder. Install
 Desktop Control from the `Desktop Control Local` marketplace, restart the desktop app, and test
 the plugin in a new local chat. The same package also supports the PowerShell installer workflow.
@@ -277,7 +300,7 @@ Its marketplace uses `./plugins/desktopctl`, and `mcp.json` launches
 path is embedded. The PowerShell package installer copies the marketplace to a current-user
 location and uses `codex plugin marketplace add` followed by `codex plugin add`.
 
-`desktopctl-plugin-0.9.3-upload.zip` is reserved for an approved local-MCP submission workflow.
+`desktopctl-plugin-0.9.4-upload.zip` is reserved for an approved local-MCP submission workflow.
 Routine personal installation must use the local marketplace package because archive upload can
 exclude local stdio MCP configuration when the submitting organization is not allowlisted.
 

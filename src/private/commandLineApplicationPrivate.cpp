@@ -214,9 +214,13 @@ Keyboard control:
   desktopctl keyboard up KEY
       Press or release a key separately. Always pair down with a later up.
   desktopctl keyboard hotkey KEY [KEY...]
-      Press keys in order and release them in reverse order.
+      Press keys in order, hold the complete combination briefly, and release in reverse order.
+      Pass separate names or one plus-delimited expression, for example ctrl shift escape or
+      ctrl+shift+escape. Hotkeys follow the active target window's keyboard layout.
   desktopctl keyboard type TEXT
       Type UTF-8/Unicode text into the focused window. Quote text that contains spaces.
+      Use type for literal text, symbols, and passwords. For example, type "@" instead of assuming
+      that shift+2 produces @ on every keyboard layout.
 
   Common keys:
       a-z, 0-9, f1-f24, enter, tab, space, escape, backspace,
@@ -308,12 +312,16 @@ Foreground focus rules:
   2. app open requests launch or activation, but an application may reuse an existing window or
      create a new one.
   3. Use window list to obtain an ID, then window activate before sending keyboard input.
-  4. For browsers, ctrl+n creates a window and ctrl+l focuses its address bar.
-  5. keyboard type does not press Enter; use keyboard press enter when navigation is required.
-  6. Add short waits after application launch, window creation, and page navigation.
-  7. Do not enter a cross-window sequence one command at a time: clicking the terminal changes
+  4. Place the caret explicitly before typing. Use ctrl+a before replacing content, end or
+     ctrl+end before appending, and home or ctrl+home before inserting at the beginning.
+  5. Use keyboard type for literal symbols or passwords. Hotkeys follow the active keyboard layout.
+  6. For browsers, ctrl+n creates a window and ctrl+l focuses its address bar.
+  7. keyboard type does not press Enter; use keyboard press enter when navigation is required.
+  8. Add short waits after application launch, window creation, and page navigation.
+  9. Do not enter a cross-window sequence one command at a time: clicking the terminal changes
      foreground focus. Paste the complete script or run it from a file.
-  8. Verify active, processName, title, and window count afterward. Use IDs for duplicate names.
+  10. Verify active, processName, title, caret placement, and window count afterward. Use IDs for
+      duplicate names and capture a screenshot when the resulting UI state matters.
 
 Browser workflow (PowerShell):
   $tool = ".\desktopctl.exe"
@@ -356,6 +364,8 @@ Examples:
   desktopctl mouse click left 2
   desktopctl mouse wheel -120 vertical
   desktopctl keyboard hotkey ctrl shift s
+  desktopctl keyboard hotkey ctrl+shift+escape
+  desktopctl keyboard type "@"
   desktopctl keyboard type "Hello, world"
   desktopctl screenshot desktop.jpg
   desktopctl screenshot region 0 0 1280 720

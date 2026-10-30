@@ -25,6 +25,16 @@ or process name when more than one window can match.
 Call `window_activate` immediately before keyboard input. Re-check `window_list` when focus matters,
 and do not assume that opening an app created a new window. Keyboard typing does not press Enter.
 
+Place the caret explicitly before typing. Use `hotkey` with `ctrl+a` before replacing content, use
+`press` with `end` or `hotkey` with `ctrl+end` before appending, and use `home` or `ctrl+home` before
+inserting at the beginning. Hotkeys accept either separate key names or one plus-delimited
+expression such as `ctrl+shift+escape`.
+
+Use `type` with the literal character for text, symbols, and passwords. Do not infer symbols from a
+physical shortcut such as Shift+2 because hotkeys follow the active target window's keyboard layout.
+For example, type `@` directly. After focus-sensitive input, verify the active window, caret or text
+result, and relevant window count. Capture a screenshot when the resulting UI state matters.
+
 Use physical virtual-desktop coordinates for mouse operations. Coordinates may be negative on
 multi-monitor systems. Confirm the intended window and bounds before coordinate-based clicks.
 

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 cmake_policy(SET CMP0091 NEW)
 
-project(desktopctl VERSION 0.9.3 LANGUAGES CXX)
+project(desktopctl VERSION 0.9.4 LANGUAGES CXX)
 
 option(DESKTOPCTL_BUILD_TESTS "Build desktopctl smoke tests" ON)
 
@@ -50,6 +50,8 @@ if(WIN32)
         src/platform/windows/activityIndicatorWindows.cpp
         src/platform/windows/applicationCatalogWindows.cpp
         src/platform/windows/desktopAutomationWindows.cpp
+        src/platform/windows/private/keyboardInputWindows.cpp
+        src/platform/windows/private/keyboardInputWindows.h
         src/platform/windows/screenCaptureWindows.cpp
         src/platform/windows/windowsText.cpp
         src/platform/windows/windowsText.h
@@ -96,6 +98,9 @@ if(DESKTOPCTL_BUILD_TESTS)
         add_test(NAME desktopctl_help_idle_timeout COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_per_monitor COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_mcp COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_hotkey_expression COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_literal_text COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_caret_placement COMMAND desktopctl -H)
         add_test(
             NAME desktopctl_mcp_lifecycle
             COMMAND ${CMAKE_COMMAND}
@@ -104,6 +109,32 @@ if(DESKTOPCTL_BUILD_TESTS)
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/test/mcpLifecycle.cmake"
         )
         if(WIN32)
+            add_executable(desktopctl_keyboard_input_tests
+                test/keyboardInputWindowsTests.cpp
+                src/platform/windows/private/keyboardInputWindows.cpp
+                src/platform/windows/private/keyboardInputWindows.h
+            )
+            target_include_directories(desktopctl_keyboard_input_tests
+                PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+            )
+            target_compile_features(desktopctl_keyboard_input_tests PRIVATE cxx_std_17)
+            target_compile_definitions(desktopctl_keyboard_input_tests PRIVATE
+                NOMINMAX
+                UNICODE
+                _UNICODE
+                WIN32_LEAN_AND_MEAN
+                _WIN32_WINNT=0x0A00
+            )
+            target_link_libraries(desktopctl_keyboard_input_tests PRIVATE user32)
+            if(MSVC)
+                set_property(TARGET desktopctl_keyboard_input_tests PROPERTY
+                    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+                )
+                target_compile_options(desktopctl_keyboard_input_tests
+                    PRIVATE /W4 /permissive- /utf-8
+                )
+            endif()
+            add_test(NAME desktopctl_keyboard_input COMMAND desktopctl_keyboard_input_tests)
             add_test(
                 NAME desktopctl_session_lifecycle
                 COMMAND ${CMAKE_COMMAND}
@@ -143,6 +174,15 @@ if(DESKTOPCTL_BUILD_TESTS)
         )
         set_tests_properties(desktopctl_help_mcp PROPERTIES
             PASS_REGULAR_EXPRESSION "desktopctl mcp serve"
+        )
+        set_tests_properties(desktopctl_help_hotkey_expression PROPERTIES
+            PASS_REGULAR_EXPRESSION "ctrl[+]shift[+]escape"
+        )
+        set_tests_properties(desktopctl_help_literal_text PROPERTIES
+            PASS_REGULAR_EXPRESSION "Use type for literal text, symbols, and passwords"
+        )
+        set_tests_properties(desktopctl_help_caret_placement PROPERTIES
+            PASS_REGULAR_EXPRESSION "Place the caret explicitly before typing"
         )
     endif()
 endif()

@@ -91,7 +91,10 @@ JsonValue McpToolDispatcher::toolDefinitions() const
                 {"type", JsonValue("array")},
                 {"items", JsonValue(JsonValue::Object{{"type", JsonValue("string")}})},
                 {"minItems", JsonValue(static_cast<std::int64_t>(1))},
-                {"description", JsonValue("Ordered key names used by hotkey.")}
+                {"description", JsonValue(
+                    "Ordered key names used by hotkey. Supply separate names or a plus-delimited "
+                    "expression such as ctrl+shift+escape. Hotkeys follow the active keyboard "
+                    "layout; use type for literal symbols and passwords.")}
             })},
             {"text", stringProperty("UTF-8 text used by type. This does not press Enter.")}
         }, {JsonValue("action")}), false));

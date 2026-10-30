@@ -102,9 +102,9 @@ public:
     OperationResult pressKey(const std::string& key);
 
     /// <summary>
-    /// Presses hotkey members in order and releases them in reverse order.
+    /// Presses hotkey members in order, holds them briefly, and releases in reverse order.
     /// </summary>
-    /// <param name="keys">At least one portable key name.</param>
+    /// <param name="keys">Portable key names or plus-delimited key expressions.</param>
     /// <returns>The operation result.</returns>
     OperationResult pressHotkey(const std::vector<std::string>& keys);
 

@@ -2,8 +2,6 @@
 
 #include "desktopAutomation.h"
 
-#include <cstdint>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -27,16 +25,8 @@ public:
     OperationResult typeText(const std::string& text);
 private:
 #if defined(_WIN32)
-    struct KeyDefinition {
-        std::uint16_t virtualKey = 0;
-        bool extended = false;
-    };
-
-    static std::string normalizeKey(const std::string& key);
-    static std::optional<KeyDefinition> parseKey(const std::string& key);
     static OperationResult windowsFailure(const std::string& operation);
     static OperationResult sendMouseButton(MouseButton button, bool pressed);
-    static OperationResult sendKey(const KeyDefinition& key, bool pressed);
 #endif
 };
 
