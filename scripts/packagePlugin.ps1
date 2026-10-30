@@ -24,6 +24,29 @@ $packageVersion = [string]$pluginManifest.version
 if ([string]::IsNullOrWhiteSpace($packageVersion)) {
     throw "Plugin version is missing from: $pluginManifestPath"
 }
+$pluginRoot = Split-Path -Parent $pluginManifestPath
+$pluginInterface = $pluginManifest.extensions.'com.openai'.interface
+if ([string]::IsNullOrWhiteSpace([string]$pluginManifest.author.name)) {
+    throw "Plugin author.name is required"
+}
+if ([string]::IsNullOrWhiteSpace([string]$pluginInterface.developerName)) {
+    throw "Plugin interface.developerName is required"
+}
+$shortDescription = [string]$pluginInterface.shortDescription
+if ([string]::IsNullOrWhiteSpace($shortDescription) -or $shortDescription.Length -gt 30) {
+    throw "Plugin interface.shortDescription must contain 1 through 30 characters"
+}
+foreach ($iconProperty in @("composerIcon", "logo")) {
+    $iconReference = [string]$pluginInterface.$iconProperty
+    if ([string]::IsNullOrWhiteSpace($iconReference)) {
+        throw "Plugin interface.$iconProperty is required"
+    }
+    $iconRelativePath = $iconReference.TrimStart(".", "/").Replace("/", "\")
+    $iconPath = Join-Path $pluginRoot $iconRelativePath
+    if (-not (Test-Path -LiteralPath $iconPath -PathType Leaf)) {
+        throw "Plugin interface.$iconProperty was not found: $iconPath"
+    }
+}
 $cmakeContents = Get-Content -LiteralPath (Join-Path $repositoryRoot "CMakeLists.txt") -Raw
 if ($cmakeContents -notmatch 'project\(desktopctl VERSION ([0-9]+\.[0-9]+\.[0-9]+) LANGUAGES CXX\)') {
     throw "Unable to read the desktopctl version from CMakeLists.txt"
@@ -47,6 +70,15 @@ if ([string]$compatibilityManifest.version -ne $packageVersion) {
 }
 if ([string]$compatibilityManifest.mcpServers -ne "./.mcp.json") {
     throw 'The Codex compatibility manifest must declare "mcpServers": "./.mcp.json"'
+}
+if ([string]$compatibilityManifest.interface.shortDescription -ne $shortDescription) {
+    throw "The plugin manifests must declare the same shortDescription"
+}
+foreach ($iconProperty in @("composerIcon", "logo")) {
+    if ([string]$compatibilityManifest.interface.$iconProperty -ne
+        [string]$pluginInterface.$iconProperty) {
+        throw "The plugin manifests must declare the same $iconProperty"
+    }
 }
 $compatibilityMcp = Get-Content -LiteralPath $compatibilityMcpPath -Raw | ConvertFrom-Json
 if ($null -eq $compatibilityMcp.mcpServers.desktopctl) {
