@@ -1,0 +1,39 @@
+# Build output
+/build*/
+/out/
+/CMakeFiles/
+/CMakeCache.txt
+/CTestTestfile.cmake
+/Testing/
+/cmake_install.cmake
+/install_manifest.txt
+
+# Compiled binaries and debug data
+*.dll
+*.exe
+*.ilk
+*.lib
+*.obj
+*.pdb
+
+# IDE and user-specific files
+/.vs/
+/.vscode/
+*.suo
+*.user
+*.user.*
+CMakeUserPresets.json
+
+# Runtime output
+/screenshots/
+*.log
+
+# Local UI verification captures
+/chrome-switch.jpg
+/chrome-switch2.jpg
+/edge-switch.jpg
+
+# Operating-system metadata
+.DS_Store
+Desktop.ini
+Thumbs.db
