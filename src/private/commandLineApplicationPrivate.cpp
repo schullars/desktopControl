@@ -218,9 +218,15 @@ Keyboard control:
       Pass separate names or one plus-delimited expression, for example ctrl shift escape or
       ctrl+shift+escape. Hotkeys follow the active target window's keyboard layout.
   desktopctl keyboard type TEXT
-      Type UTF-8/Unicode text into the focused window. Quote text that contains spaces.
-      Use type for literal text, symbols, and passwords. For example, type "@" instead of assuming
-      that shift+2 produces @ on every keyboard layout.
+      Type UTF-8 text into the focused window. Characters available in the active keyboard layout
+      use physical scan codes; other characters fall back to Unicode input.
+  desktopctl keyboard type-physical TEXT
+      Require physical scan-code input. This is the most compatible mode for virtual machines,
+      remote desktops, ASCII text, symbols, and passwords. The target layout and unsynchronized
+      remote lock-key state can affect the result. Unrepresentable characters return an error.
+  desktopctl keyboard type-unicode TEXT
+      Force Unicode input. Use this for direct non-ASCII text in compatible local applications.
+      Some virtual-machine and remote-desktop clients do not forward Unicode packet events.
 
   Common keys:
       a-z, 0-9, f1-f24, enter, tab, space, escape, backspace,
@@ -314,7 +320,10 @@ Foreground focus rules:
   3. Use window list to obtain an ID, then window activate before sending keyboard input.
   4. Place the caret explicitly before typing. Use ctrl+a before replacing content, end or
      ctrl+end before appending, and home or ctrl+home before inserting at the beginning.
-  5. Use keyboard type for literal symbols or passwords. Hotkeys follow the active keyboard layout.
+  5. keyboard type uses hybrid physical/Unicode input. Use type-physical for virtual machines,
+     remote desktops, symbols, and passwords. Physical input follows the target layout. The host
+     Caps Lock state is compensated, but an unsynchronized remote lock state can still affect case.
+     Use type-unicode only when direct Unicode packet input is supported.
   6. For browsers, ctrl+n creates a window and ctrl+l focuses its address bar.
   7. keyboard type does not press Enter; use keyboard press enter when navigation is required.
   8. Add short waits after application launch, window creation, and page navigation.
@@ -366,6 +375,8 @@ Examples:
   desktopctl keyboard hotkey ctrl shift s
   desktopctl keyboard hotkey ctrl+shift+escape
   desktopctl keyboard type "@"
+  desktopctl keyboard type-physical "@#"
+  desktopctl keyboard type-unicode "Hello, world"
   desktopctl keyboard type "Hello, world"
   desktopctl screenshot desktop.jpg
   desktopctl screenshot region 0 0 1280 720
@@ -540,9 +551,9 @@ int CommandLineApplicationPrivate::runKeyboard(const std::vector<std::string>& a
         return reportResult(automation_.pressHotkey(keys));
     }
 
-    if (action == "type") {
+    if (action == "type" || action == "type-physical" || action == "type-unicode") {
         if (arguments.size() < 4) {
-            std::cerr << "Keyboard type requires TEXT.\n";
+            std::cerr << "Keyboard type/type-physical/type-unicode requires TEXT.\n";
             return 2;
         }
         std::string text = arguments[3];
@@ -550,7 +561,13 @@ int CommandLineApplicationPrivate::runKeyboard(const std::vector<std::string>& a
             text += ' ';
             text += arguments[index];
         }
-        return reportResult(automation_.typeText(text));
+        TextInputMode mode = TextInputMode::Hybrid;
+        if (action == "type-physical") {
+            mode = TextInputMode::Physical;
+        } else if (action == "type-unicode") {
+            mode = TextInputMode::Unicode;
+        }
+        return reportResult(automation_.typeText(text, mode));
     }
 
     std::cerr << "Unknown keyboard action: " << arguments[2] << '\n';

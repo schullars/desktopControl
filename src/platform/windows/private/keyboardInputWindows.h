@@ -19,6 +19,12 @@ public:
     static std::optional<KeyDefinition> parseKey(const std::string& key);
     static HKL foregroundKeyboardLayout();
     static INPUT createInput(const KeyDefinition& key, bool pressed, HKL layout);
+    // Maps one character to a complete physical key chord for the supplied layout and lock state.
+    static bool buildCharacterInputs(wchar_t character,
+                                     HKL layout,
+                                     bool capsLockEnabled,
+                                     std::vector<INPUT>& downInputs,
+                                     std::vector<INPUT>& upInputs);
     static bool buildHotkeyInputs(const std::vector<std::string>& keys,
                                   HKL layout,
                                   std::vector<INPUT>& downInputs,

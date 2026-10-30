@@ -51,6 +51,35 @@ int main()
                     name + " contains an incorrect key-up input or release order.");
         }
     };
+    const HKL usLayout = LoadKeyboardLayoutW(L"00000409", KLF_NOTELLSHELL);
+    require(usLayout != nullptr, "The US keyboard layout could not be loaded for tests.");
+    const auto verifyCharacter = [&require, usLayout](
+                                     wchar_t character,
+                                     const std::vector<KeyboardInputWindows::KeyDefinition>& keys,
+                                     const std::string& name) {
+        std::vector<INPUT> downInputs;
+        std::vector<INPUT> upInputs;
+        require(KeyboardInputWindows::buildCharacterInputs(
+                    character, usLayout, false, downInputs, upInputs),
+                name + " did not map to physical inputs.");
+        require(downInputs.size() == keys.size(), name + " down count is incorrect.");
+        require(upInputs.size() == keys.size(), name + " up count is incorrect.");
+        if (downInputs.size() != keys.size() || upInputs.size() != keys.size()) {
+            return;
+        }
+        for (std::size_t index = 0; index < keys.size(); ++index) {
+            const INPUT expectedDown
+                = KeyboardInputWindows::createInput(keys[index], true, usLayout);
+            const INPUT expectedUp = KeyboardInputWindows::createInput(
+                keys[keys.size() - index - 1U], false, usLayout);
+            require(downInputs[index].ki.wScan == expectedDown.ki.wScan
+                        && downInputs[index].ki.dwFlags == expectedDown.ki.dwFlags,
+                    name + " contains an incorrect physical key-down input.");
+            require(upInputs[index].ki.wScan == expectedUp.ki.wScan
+                        && upInputs[index].ki.dwFlags == expectedUp.ki.dwFlags,
+                    name + " contains an incorrect physical key-up input or release order.");
+        }
+    };
 
     verifySequence({"shift", "2"}, {{VK_SHIFT, false}, {'2', false}}, "Shift+2");
     verifySequence({"shift", "1"}, {{VK_SHIFT, false}, {'1', false}}, "Shift+1");
@@ -82,6 +111,34 @@ int main()
     verifySequence({"shift+plus"},
                    {{VK_SHIFT, false}, {VK_OEM_PLUS, false}},
                    "Shift+plus expression");
+
+    if (usLayout != nullptr) {
+        verifyCharacter(L'@', {{VK_SHIFT, false}, {'2', false}}, "Physical @");
+        verifyCharacter(L'#', {{VK_SHIFT, false}, {'3', false}}, "Physical #");
+        verifyCharacter(L'a', {{'A', false}}, "Physical lowercase a");
+        verifyCharacter(L'A', {{VK_SHIFT, false}, {'A', false}}, "Physical uppercase A");
+        verifyCharacter(L' ', {{VK_SPACE, false}}, "Physical space");
+
+        std::vector<INPUT> unsupportedDownInputs;
+        std::vector<INPUT> unsupportedUpInputs;
+        require(!KeyboardInputWindows::buildCharacterInputs(
+                    L'\x4E2D', usLayout, false, unsupportedDownInputs, unsupportedUpInputs),
+                "A US keyboard layout must not physically map a CJK character.");
+
+        std::vector<INPUT> capsDownInputs;
+        std::vector<INPUT> capsUpInputs;
+        require(KeyboardInputWindows::buildCharacterInputs(
+                    L'a', usLayout, true, capsDownInputs, capsUpInputs)
+                    && capsDownInputs.size() == 2U
+                    && capsDownInputs.front().ki.wScan
+                        == KeyboardInputWindows::createInput(
+                               {VK_SHIFT, false}, true, usLayout).ki.wScan,
+                "Caps Lock must add Shift when physically typing lowercase ASCII.");
+        require(KeyboardInputWindows::buildCharacterInputs(
+                    L'A', usLayout, true, capsDownInputs, capsUpInputs)
+                    && capsDownInputs.size() == 1U,
+                "Caps Lock must remove Shift when physically typing uppercase ASCII.");
+    }
 
     const auto rightControl = KeyboardInputWindows::parseKey("rightctrl");
     const auto rightAlt = KeyboardInputWindows::parseKey("rightalt");

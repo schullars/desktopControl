@@ -30,10 +30,14 @@ Place the caret explicitly before typing. Use `hotkey` with `ctrl+a` before repl
 inserting at the beginning. Hotkeys accept either separate key names or one plus-delimited
 expression such as `ctrl+shift+escape`.
 
-Use `type` with the literal character for text, symbols, and passwords. Do not infer symbols from a
-physical shortcut such as Shift+2 because hotkeys follow the active target window's keyboard layout.
-For example, type `@` directly. After focus-sensitive input, verify the active window, caret or text
-result, and relevant window count. Capture a screenshot when the resulting UI state matters.
+Use `type` for hybrid text input: characters available in the active keyboard layout use physical
+scan codes and other characters fall back to Unicode. Use `type_physical` for virtual machines,
+remote desktops, ASCII text, symbols, and passwords because those targets may reject Unicode packet
+events. Use `type_unicode` only when a compatible local application needs forced direct Unicode.
+Physical input follows the target layout and input method state. Host Caps Lock is compensated for
+ASCII letters, but an unsynchronized remote or guest lock state can still affect case. After
+focus-sensitive input, verify the active window, caret or text result, and relevant window count.
+Capture a screenshot when the resulting UI state matters.
 
 Use physical virtual-desktop coordinates for mouse operations. Coordinates may be negative on
 multi-monitor systems. Confirm the intended window and bounds before coordinate-based clicks.

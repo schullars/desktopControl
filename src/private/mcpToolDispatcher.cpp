@@ -85,7 +85,8 @@ JsonValue McpToolDispatcher::toolDefinitions() const
         "the intended window before sending input.",
         schema({
             {"action", enumProperty({JsonValue("press"), JsonValue("down"), JsonValue("up"),
-                 JsonValue("hotkey"), JsonValue("type")}, "Keyboard operation to perform.")},
+                 JsonValue("hotkey"), JsonValue("type"), JsonValue("type_physical"),
+                 JsonValue("type_unicode")}, "Keyboard operation to perform.")},
             {"key", stringProperty("Portable key name used by press, down, or up.")},
             {"keys", JsonValue(JsonValue::Object{
                 {"type", JsonValue("array")},
@@ -94,9 +95,11 @@ JsonValue McpToolDispatcher::toolDefinitions() const
                 {"description", JsonValue(
                     "Ordered key names used by hotkey. Supply separate names or a plus-delimited "
                     "expression such as ctrl+shift+escape. Hotkeys follow the active keyboard "
-                    "layout; use type for literal symbols and passwords.")}
+                    "layout; use type or type_physical for literal symbols and passwords.")}
             })},
-            {"text", stringProperty("UTF-8 text used by type. This does not press Enter.")}
+            {"text", stringProperty(
+                "UTF-8 text used by type, type_physical, or type_unicode. Hybrid type prefers "
+                "physical scan codes and falls back to Unicode. This does not press Enter.")}
         }, {JsonValue("action")}), false));
     tools.push_back(tool(
         "screenshot_capture",
@@ -424,12 +427,18 @@ JsonValue McpToolDispatcher::callKeyboard(const JsonValue& arguments)
         const OperationResult result = automation_.pressHotkey(keys);
         return toolResult(operationPayload(result), !result.success);
     }
-    if (action == "type") {
+    if (action == "type" || action == "type_physical" || action == "type_unicode") {
         std::string text;
         if (!getString(arguments, "text", true, text, error)) {
             return errorResult(error);
         }
-        const OperationResult result = automation_.typeText(text);
+        TextInputMode mode = TextInputMode::Hybrid;
+        if (action == "type_physical") {
+            mode = TextInputMode::Physical;
+        } else if (action == "type_unicode") {
+            mode = TextInputMode::Unicode;
+        }
+        const OperationResult result = automation_.typeText(text, mode);
         return toolResult(operationPayload(result), !result.success);
     }
     return errorResult("Unknown keyboard action: " + action);

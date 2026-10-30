@@ -1,6 +1,6 @@
 {
   "name": "desktopctl",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "Control the local Windows desktop with visible green activity indicators.",
   "author": {
     "name": "Schullar",

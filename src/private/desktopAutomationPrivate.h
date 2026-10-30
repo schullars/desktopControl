@@ -22,7 +22,7 @@ public:
     OperationResult keyUp(const std::string& key);
     OperationResult pressKey(const std::string& key);
     OperationResult pressHotkey(const std::vector<std::string>& keys);
-    OperationResult typeText(const std::string& text);
+    OperationResult typeText(const std::string& text, TextInputMode mode);
 private:
 #if defined(_WIN32)
     static OperationResult windowsFailure(const std::string& operation);

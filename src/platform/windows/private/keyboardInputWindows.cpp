@@ -128,6 +128,55 @@ INPUT KeyboardInputWindows::createInput(const KeyDefinition& key, bool pressed, 
     return input;
 }
 
+bool KeyboardInputWindows::buildCharacterInputs(wchar_t character,
+                                                 HKL layout,
+                                                 bool capsLockEnabled,
+                                                 std::vector<INPUT>& downInputs,
+                                                 std::vector<INPUT>& upInputs)
+{
+    downInputs.clear();
+    upInputs.clear();
+
+    const SHORT mapping = VkKeyScanExW(character, layout);
+    if (mapping == -1) {
+        return false;
+    }
+
+    const auto mappingBits = static_cast<unsigned short>(mapping);
+    const auto virtualKey = static_cast<std::uint16_t>(mappingBits & 0x00FFU);
+    unsigned int modifierState = (mappingBits >> 8U) & 0x00FFU;
+    if ((modifierState & ~0x07U) != 0U) {
+        return false;
+    }
+    const bool isAsciiLetter = (character >= L'a' && character <= L'z')
+        || (character >= L'A' && character <= L'Z');
+    if (capsLockEnabled && isAsciiLetter) {
+        modifierState ^= 0x01U;
+    }
+
+    std::vector<KeyDefinition> definitions;
+    if ((modifierState & 0x02U) != 0U) {
+        definitions.push_back({VK_CONTROL, false});
+    }
+    if ((modifierState & 0x04U) != 0U) {
+        definitions.push_back({VK_MENU, false});
+    }
+    if ((modifierState & 0x01U) != 0U) {
+        definitions.push_back({VK_SHIFT, false});
+    }
+    definitions.push_back({virtualKey, false});
+
+    downInputs.reserve(definitions.size());
+    upInputs.reserve(definitions.size());
+    for (const KeyDefinition& definition : definitions) {
+        downInputs.push_back(createInput(definition, true, layout));
+    }
+    for (auto definition = definitions.rbegin(); definition != definitions.rend(); ++definition) {
+        upInputs.push_back(createInput(*definition, false, layout));
+    }
+    return true;
+}
+
 bool KeyboardInputWindows::expandHotkeyKeys(const std::vector<std::string>& keys,
                                              std::vector<std::string>& expandedKeys,
                                              std::string& error)

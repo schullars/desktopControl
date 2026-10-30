@@ -55,6 +55,8 @@ desktopctl keyboard down KEY
 desktopctl keyboard up KEY
 desktopctl keyboard hotkey KEY [KEY...]
 desktopctl keyboard type TEXT
+desktopctl keyboard type-physical TEXT
+desktopctl keyboard type-unicode TEXT
 
 desktopctl screenshot OUTPUT_IMAGE [X Y WIDTH HEIGHT]
 desktopctl screenshot
@@ -110,7 +112,7 @@ negative values reverse direction.
 
 Key names include letters, digits, `F1` through `F24`, `enter`, `tab`, `space`, `escape`,
 `ctrl`, `shift`, `alt`, `win`, navigation keys, editing keys, and numeric keypad keys. Use
-`keyboard type` for arbitrary Unicode text and quote text that contains spaces.
+`keyboard type` for hybrid physical/Unicode text and quote text that contains spaces.
 
 ## Screenshot output and cleanup guidance
 
@@ -205,15 +207,25 @@ desktopctl keyboard hotkey ctrl shift escape
 desktopctl keyboard hotkey ctrl+shift+escape
 ```
 
-DesktopCTL sends physical scan-code input using the foreground window's active keyboard layout,
-holds the complete combination briefly, and releases keys in reverse order. Use `keyboard type`
-for literal text, symbols, and passwords because a physical shortcut such as Shift+2 does not
-produce the same symbol on every layout:
+DesktopCTL sends hotkeys as physical scan-code input using the foreground window's active keyboard
+layout, holds the complete combination briefly, and releases keys in reverse order.
+
+`keyboard type` is hybrid: each character available in the active layout uses the same physical
+scan-code path as a real keyboard, while unrepresentable characters fall back to Unicode input.
+Use `type-physical` to require scan codes for virtual machines, remote desktops, ASCII text,
+symbols, and passwords. Use `type-unicode` to force direct Unicode packet input in compatible local
+applications. Some virtual-machine and remote-desktop clients do not forward Unicode packet events.
 
 ```text
 desktopctl keyboard type "@"
+desktopctl keyboard type-physical "@#"
+desktopctl keyboard type-unicode "Hello, world"
 ```
 
+Physical input follows the target system's active keyboard layout and input method state. DesktopCTL
+compensates for the host Caps Lock state when typing ASCII letters, but an unsynchronized remote or
+guest lock state can still affect case. For example, `@` may require a different physical key
+combination on a non-US layout.
 Activate the intended window immediately before keyboard input. Place the caret explicitly with
 Ctrl+A before replacement, End or Ctrl+End before appending, and Home or Ctrl+Home before inserting
 at the beginning. Verify the active window and resulting text or UI state afterward.
@@ -291,7 +303,7 @@ cmake --install build-vs2019 --config Release --prefix build-vs2019\install
 ```
 
 The package is written under `build-vs2019\package`. Extract
-`desktopctl-plugin-0.9.4-windows-x64.zip`, open the desktop Plugins directory, select
+`desktopctl-plugin-0.9.5-windows-x64.zip`, open the desktop Plugins directory, select
 `Add > Add a marketplace`, and choose the extracted package root as a local folder. Install
 Desktop Control from the `Desktop Control Local` marketplace, restart the desktop app, and test
 the plugin in a new local chat. The same package also supports the PowerShell installer workflow.
@@ -300,7 +312,7 @@ Its marketplace uses `./plugins/desktopctl`, and `mcp.json` launches
 path is embedded. The PowerShell package installer copies the marketplace to a current-user
 location and uses `codex plugin marketplace add` followed by `codex plugin add`.
 
-`desktopctl-plugin-0.9.4-upload.zip` is reserved for an approved local-MCP submission workflow.
+`desktopctl-plugin-0.9.5-upload.zip` is reserved for an approved local-MCP submission workflow.
 Routine personal installation must use the local marketplace package because archive upload can
 exclude local stdio MCP configuration when the submitting organization is not allowlisted.
 

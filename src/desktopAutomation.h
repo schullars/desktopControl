@@ -19,6 +19,18 @@ enum class WheelDirection {
     Horizontal
 };
 
+/// <summary>
+/// Selects how text characters are converted into Windows keyboard input events.
+/// </summary>
+enum class TextInputMode {
+    /// Prefer physical scan codes and fall back to Unicode for unmapped characters.
+    Hybrid,
+    /// Require every character to be representable by the active keyboard layout.
+    Physical,
+    /// Send every UTF-16 code unit through Windows Unicode packet input.
+    Unicode
+};
+
 class DesktopAutomationPrivate;
 
 class DesktopAutomation final {
@@ -109,11 +121,12 @@ public:
     OperationResult pressHotkey(const std::vector<std::string>& keys);
 
     /// <summary>
-    /// Sends UTF-8 text as Unicode keyboard input to the focused window.
+    /// Types UTF-8 text into the focused window using the requested input strategy.
     /// </summary>
     /// <param name="text">The UTF-8 text to type.</param>
+    /// <param name="mode">Hybrid prefers physical keys and falls back to Unicode.</param>
     /// <returns>The operation result.</returns>
-    OperationResult typeText(const std::string& text);
+    OperationResult typeText(const std::string& text, TextInputMode mode = TextInputMode::Hybrid);
 
 private:
     std::unique_ptr<DesktopAutomationPrivate> _d;

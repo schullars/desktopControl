@@ -56,7 +56,7 @@ OperationResult DesktopAutomationPrivate::pressHotkey(const std::vector<std::str
     return {false, "Keyboard control is not implemented on Linux yet."};
 }
 
-OperationResult DesktopAutomationPrivate::typeText(const std::string&)
+OperationResult DesktopAutomationPrivate::typeText(const std::string&, TextInputMode)
 {
     return {false, "Keyboard control is not implemented on Linux yet."};
 }

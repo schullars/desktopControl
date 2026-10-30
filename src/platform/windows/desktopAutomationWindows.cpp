@@ -245,7 +245,7 @@ OperationResult DesktopAutomationPrivate::pressHotkey(const std::vector<std::str
     return {true, "Hotkey pressed."};
 }
 
-OperationResult DesktopAutomationPrivate::typeText(const std::string& text)
+OperationResult DesktopAutomationPrivate::typeText(const std::string& text, TextInputMode mode)
 {
     if (text.empty()) {
         return {true, "No text to type."};
@@ -265,7 +265,54 @@ OperationResult DesktopAutomationPrivate::typeText(const std::string& text)
         != utf16Length) {
         return windowsFailure("UTF-8 conversion");
     }
+    const HKL layout = KeyboardInputWindows::foregroundKeyboardLayout();
+    const bool capsLockEnabled = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
     for (const wchar_t codeUnit : utf16) {
+        std::vector<INPUT> downInputs;
+        std::vector<INPUT> upInputs;
+        const bool hasPhysicalMapping = mode != TextInputMode::Unicode
+            && KeyboardInputWindows::buildCharacterInputs(
+                codeUnit, layout, capsLockEnabled, downInputs, upInputs);
+        if (hasPhysicalMapping) {
+            std::size_t pressedCount = 0;
+            for (INPUT& downInput : downInputs) {
+                if (SendInput(1, &downInput, sizeof(INPUT)) != 1) {
+                    const DWORD failure = GetLastError();
+                    const auto firstRelease
+                        = upInputs.end() - static_cast<std::ptrdiff_t>(pressedCount);
+                    for (auto cleanupInput = firstRelease; cleanupInput != upInputs.end();
+                         ++cleanupInput) {
+                        SendInput(1, &*cleanupInput, sizeof(INPUT));
+                    }
+                    SetLastError(failure);
+                    return windowsFailure("SendInput(physical text key down)");
+                }
+                ++pressedCount;
+                std::this_thread::sleep_for(std::chrono::milliseconds(3));
+            }
+
+            bool releaseFailed = false;
+            DWORD releaseFailure = ERROR_SUCCESS;
+            for (INPUT& upInput : upInputs) {
+                if (SendInput(1, &upInput, sizeof(INPUT)) != 1 && !releaseFailed) {
+                    releaseFailed = true;
+                    releaseFailure = GetLastError();
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(3));
+            }
+            if (releaseFailed) {
+                SetLastError(releaseFailure);
+                return windowsFailure("SendInput(physical text key up)");
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(4));
+            continue;
+        }
+        if (mode == TextInputMode::Physical) {
+            return {false,
+                    "Physical text input cannot represent UTF-16 code unit "
+                        + std::to_string(static_cast<unsigned int>(codeUnit)) + "."};
+        }
+
         INPUT down{};
         down.type = INPUT_KEYBOARD;
         down.ki.wScan = static_cast<WORD>(codeUnit);

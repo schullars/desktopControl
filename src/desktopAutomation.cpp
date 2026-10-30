@@ -67,9 +67,9 @@ OperationResult DesktopAutomation::pressHotkey(const std::vector<std::string>& k
     return _d->pressHotkey(keys);
 }
 
-OperationResult DesktopAutomation::typeText(const std::string& text)
+OperationResult DesktopAutomation::typeText(const std::string& text, TextInputMode mode)
 {
-    return _d->typeText(text);
+    return _d->typeText(text, mode);
 }
 
 } // namespace desktopctl
