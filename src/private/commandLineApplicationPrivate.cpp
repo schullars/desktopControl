@@ -228,6 +228,36 @@ Keyboard control:
       Force Unicode input. Use this for direct non-ASCII text in compatible local applications.
       Some virtual-machine and remote-desktop clients do not forward Unicode packet events.
 
+  Text input mode selection:
+      1. Start with keyboard type for ordinary text. Hybrid mode maps every character available in
+         the foreground Windows keyboard layout to a physical key chord and falls back to Unicode
+         only for a character that has no physical mapping.
+      2. Use type-physical when Unicode fallback must never occur, especially for an ASCII login,
+         symbol, or password field inside a virtual machine or remote desktop. The command returns
+         an error if any character cannot be represented by the foreground keyboard layout.
+      3. Use type-unicode only for a compatible local application. It sends Unicode packet events;
+         it does not simulate the physical Shift, Ctrl, or Alt chord for the character.
+
+      With a US keyboard layout, hybrid and physical modes generate @ as Shift+2 and # as Shift+3.
+      Do not send those modifier combinations manually when TEXT already contains @ or #. The
+      foreground Windows layout and the guest or remote layout must agree. DesktopCTL does not
+      install, select, or synchronize a guest input method or keyboard layout.
+
+      If ASCII letter case is inverted while symbols are correct, the host and guest Caps Lock
+      states probably differ. Do not press capslock while the virtual machine or remote desktop is
+      focused because that can toggle both states and preserve the mismatch. Activate a local
+      Windows window outside the client, press capslock once to change only the host state, then
+      reactivate the target, select the complete field, retype it, and capture another screenshot.
+      Do not submit until the screenshot shows the exact intended case and symbols.
+
+      Command success means Windows accepted the generated input events. It cannot prove that a
+      virtual machine, remote client, browser, or input method produced the intended text. Activate
+      the exact target, place the caret, enter the complete field, and verify the result with a
+      target-window screenshot before submitting a login or another irreversible action.
+
+      Plugin keyboard_control actions use type, type_physical, and type_unicode. The equivalent CLI
+      names are type, type-physical, and type-unicode.
+
   Common keys:
       a-z, 0-9, f1-f24, enter, tab, space, escape, backspace,
       ctrl, shift, alt, win, left, right, up, down, home, end,
@@ -331,6 +361,30 @@ Foreground focus rules:
      foreground focus. Paste the complete script or run it from a file.
   10. Verify active, processName, title, caret placement, and window count afterward. Use IDs for
       duplicate names and capture a screenshot when the resulting UI state matters.
+
+Virtual-machine text workflow (PowerShell):
+  $tool = ".\desktopctl.exe"
+  $target = "VM_WINDOW_ID_OR_UNIQUE_NAME"
+  & $tool session start
+  if ($LASTEXITCODE -ne 0) { throw "Session start failed" }
+  try {
+      & $tool window activate $target
+      if ($LASTEXITCODE -ne 0) { throw "VM activation failed" }
+      & $tool keyboard hotkey ctrl+a
+      & $tool keyboard type-physical "admin@#"
+      if ($LASTEXITCODE -ne 0) { throw "Physical text input failed" }
+      $capture = & $tool screenshot window $target | ConvertFrom-Json
+      Write-Host "Verify the field in: $($capture.path)"
+      # Submit only after the screenshot confirms the complete text.
+  } finally {
+      & $tool session stop
+  }
+
+  Use keyboard type instead of type-physical when the text may contain characters unavailable in
+  the foreground physical layout and the target is known to accept Unicode packet input.
+  If ASCII letter case is inverted, activate a local Windows window outside the VM client, run
+  keyboard press capslock once to change only the host state, reactivate the VM, repeat ctrl+a and
+  type-physical for the complete field, and capture a new screenshot before submitting.
 
 Browser workflow (PowerShell):
   $tool = ".\desktopctl.exe"

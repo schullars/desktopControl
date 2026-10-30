@@ -210,11 +210,13 @@ desktopctl keyboard hotkey ctrl+shift+escape
 DesktopCTL sends hotkeys as physical scan-code input using the foreground window's active keyboard
 layout, holds the complete combination briefly, and releases keys in reverse order.
 
-`keyboard type` is hybrid: each character available in the active layout uses the same physical
-scan-code path as a real keyboard, while unrepresentable characters fall back to Unicode input.
-Use `type-physical` to require scan codes for virtual machines, remote desktops, ASCII text,
-symbols, and passwords. Use `type-unicode` to force direct Unicode packet input in compatible local
-applications. Some virtual-machine and remote-desktop clients do not forward Unicode packet events.
+`keyboard type` is the recommended starting point for ordinary text. It is hybrid: each character
+available in the foreground Windows layout uses the same physical scan-code path as a real keyboard,
+while an unrepresentable character falls back to Unicode input. Use `type-physical` when Unicode
+fallback must never occur, especially for virtual-machine or remote-desktop ASCII logins, symbols,
+and passwords. It returns an error if any character lacks a physical mapping. Use `type-unicode`
+only to force direct Unicode packet input in a compatible local application. Some virtual-machine
+and remote-desktop clients do not forward Unicode packet events.
 
 ```text
 desktopctl keyboard type "@"
@@ -222,10 +224,43 @@ desktopctl keyboard type-physical "@#"
 desktopctl keyboard type-unicode "Hello, world"
 ```
 
-Physical input follows the target system's active keyboard layout and input method state. DesktopCTL
-compensates for the host Caps Lock state when typing ASCII letters, but an unsynchronized remote or
-guest lock state can still affect case. For example, `@` may require a different physical key
-combination on a non-US layout.
+With a US layout, hybrid and physical modes generate `@` as Shift+2 and `#` as Shift+3. Do not send
+those hotkeys manually when the text already contains the symbols. Physical input is mapped from the
+foreground Windows layout, while the guest or remote system interprets the received keys with its
+own layout and input method. The layouts must agree; DesktopCTL does not install, select, or
+synchronize a guest input method. DesktopCTL compensates for host Caps Lock when typing ASCII
+letters, but an unsynchronized guest lock state can still affect case.
+
+If ASCII letter case is inverted while symbols are correct, the host and guest Caps Lock states
+probably differ. Do not press Caps Lock while the virtual machine or remote desktop is focused,
+because that can toggle both states and preserve the mismatch. Activate a local Windows window
+outside the client, run `desktopctl keyboard press capslock` once to change only the host state,
+reactivate the target, select the complete field, retype it, and capture another screenshot. Do not
+submit until the screenshot shows the exact intended case and symbols.
+
+Command success means Windows accepted the generated input events. It does not prove that a virtual
+machine, remote client, browser, or input method produced the intended text. Activate the exact
+target, place the caret, enter the complete field, and verify it with a target-window screenshot
+before submitting a login or another irreversible action. For the Codex plugin, the corresponding
+actions are `type`, `type_physical`, and `type_unicode`.
+
+Virtual-machine example:
+
+```powershell
+$tool = ".\desktopctl.exe"
+$target = "VM_WINDOW_ID_OR_UNIQUE_NAME"
+& $tool session start
+try {
+    & $tool window activate $target
+    & $tool keyboard hotkey ctrl+a
+    & $tool keyboard type-physical "admin@#"
+    $capture = & $tool screenshot window $target | ConvertFrom-Json
+    Write-Host "Verify the field in: $($capture.path)"
+} finally {
+    & $tool session stop
+}
+```
+
 Activate the intended window immediately before keyboard input. Place the caret explicitly with
 Ctrl+A before replacement, End or Ctrl+End before appending, and Home or Ctrl+Home before inserting
 at the beginning. Verify the active window and resulting text or UI state afterward.
@@ -303,7 +338,7 @@ cmake --install build-vs2019 --config Release --prefix build-vs2019\install
 ```
 
 The package is written under `build-vs2019\package`. Extract
-`desktopctl-plugin-0.9.5-windows-x64.zip`, open the desktop Plugins directory, select
+`desktopctl-plugin-0.9.6-windows-x64.zip`, open the desktop Plugins directory, select
 `Add > Add a marketplace`, and choose the extracted package root as a local folder. Install
 Desktop Control from the `Desktop Control Local` marketplace, restart the desktop app, and test
 the plugin in a new local chat. The same package also supports the PowerShell installer workflow.
@@ -312,7 +347,7 @@ Its marketplace uses `./plugins/desktopctl`, and `mcp.json` launches
 path is embedded. The PowerShell package installer copies the marketplace to a current-user
 location and uses `codex plugin marketplace add` followed by `codex plugin add`.
 
-`desktopctl-plugin-0.9.5-upload.zip` is reserved for an approved local-MCP submission workflow.
+`desktopctl-plugin-0.9.6-upload.zip` is reserved for an approved local-MCP submission workflow.
 Routine personal installation must use the local marketplace package because archive upload can
 exclude local stdio MCP configuration when the submitting organization is not allowlisted.
 

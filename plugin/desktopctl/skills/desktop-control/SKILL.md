@@ -30,14 +30,28 @@ Place the caret explicitly before typing. Use `hotkey` with `ctrl+a` before repl
 inserting at the beginning. Hotkeys accept either separate key names or one plus-delimited
 expression such as `ctrl+shift+escape`.
 
-Use `type` for hybrid text input: characters available in the active keyboard layout use physical
-scan codes and other characters fall back to Unicode. Use `type_physical` for virtual machines,
-remote desktops, ASCII text, symbols, and passwords because those targets may reject Unicode packet
-events. Use `type_unicode` only when a compatible local application needs forced direct Unicode.
-Physical input follows the target layout and input method state. Host Caps Lock is compensated for
-ASCII letters, but an unsynchronized remote or guest lock state can still affect case. After
-focus-sensitive input, verify the active window, caret or text result, and relevant window count.
-Capture a screenshot when the resulting UI state matters.
+Start with `type` for ordinary text. Hybrid mode maps characters available in the foreground Windows
+layout to physical scan-code chords and falls back to Unicode only for unrepresentable characters.
+Use `type_physical` when fallback must never occur, especially for virtual-machine or remote-desktop
+ASCII logins, symbols, and passwords. It fails if any character lacks a physical mapping. Use
+`type_unicode` only when a compatible local application needs forced direct Unicode.
+
+With a US layout, hybrid and physical input generate `@` as Shift+2 and `#` as Shift+3. Do not send
+those hotkeys separately when the text already contains the symbols. The foreground Windows layout
+and guest or remote layout must agree; DesktopCTL does not install, select, or synchronize the guest
+layout or input method. Host Caps Lock is compensated for ASCII letters, but an unsynchronized guest
+lock state can still affect case.
+
+If ASCII letter case is inverted while symbols are correct, do not press Caps Lock while the virtual
+machine or remote desktop is focused because that can toggle both states and preserve the mismatch.
+Activate a local Windows window outside the client, use `press` with `capslock` once to change only
+the host state, reactivate the target, select the complete field, retype it, and capture another
+screenshot. Do not submit until the screenshot shows the exact intended case and symbols.
+
+A successful keyboard tool result means Windows accepted the input events; it does not prove the
+target rendered the intended text. After focus-sensitive input, verify the active window, caret or
+text result, and relevant window count. Capture the target window before submitting a login or
+another irreversible action.
 
 Use physical virtual-desktop coordinates for mouse operations. Coordinates may be negative on
 multi-monitor systems. Confirm the intended window and bounds before coordinate-based clicks.

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 cmake_policy(SET CMP0091 NEW)
 
-project(desktopctl VERSION 0.9.5 LANGUAGES CXX)
+project(desktopctl VERSION 0.9.6 LANGUAGES CXX)
 
 option(DESKTOPCTL_BUILD_TESTS "Build desktopctl smoke tests" ON)
 
@@ -102,6 +102,9 @@ if(DESKTOPCTL_BUILD_TESTS)
         add_test(NAME desktopctl_help_literal_text COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_caret_placement COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_physical_text COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_text_mode_selection COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_vm_text_workflow COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_guest_caps_lock COMMAND desktopctl -H)
         add_test(
             NAME desktopctl_mcp_lifecycle
             COMMAND ${CMAKE_COMMAND}
@@ -187,6 +190,15 @@ if(DESKTOPCTL_BUILD_TESTS)
         )
         set_tests_properties(desktopctl_help_physical_text PROPERTIES
             PASS_REGULAR_EXPRESSION "desktopctl keyboard type-physical TEXT"
+        )
+        set_tests_properties(desktopctl_help_text_mode_selection PROPERTIES
+            PASS_REGULAR_EXPRESSION "Text input mode selection"
+        )
+        set_tests_properties(desktopctl_help_vm_text_workflow PROPERTIES
+            PASS_REGULAR_EXPRESSION "Virtual-machine text workflow"
+        )
+        set_tests_properties(desktopctl_help_guest_caps_lock PROPERTIES
+            PASS_REGULAR_EXPRESSION "ASCII letter case is inverted while symbols are correct"
         )
     endif()
 endif()

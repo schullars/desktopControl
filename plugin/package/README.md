@@ -15,7 +15,7 @@ or an external JSON library. Windows system DLLs are supplied by the operating s
 
 ## Install through the desktop user interface
 
-Use `desktopctl-plugin-0.9.5-windows-x64.zip` for this installation method.
+Use `desktopctl-plugin-0.9.6-windows-x64.zip` for this installation method.
 
 1. Extract the ZIP to a local folder. Keep `.agents`, `plugins`, and all package files together.
 2. Open ChatGPT Desktop and switch to the ChatGPT surface if the app is showing Codex.
@@ -29,11 +29,11 @@ Use `desktopctl-plugin-0.9.5-windows-x64.zip` for this installation method.
 
 Do not use `Upload plugin archive` for routine personal installation. That upload path can exclude
 local stdio MCP configuration unless the submitting organization is approved for local MCP
-submissions. `desktopctl-plugin-0.9.5-upload.zip` is reserved for that approved submission flow.
+submissions. `desktopctl-plugin-0.9.6-upload.zip` is reserved for that approved submission flow.
 
 ## Install through PowerShell
 
-The same `desktopctl-plugin-0.9.5-windows-x64.zip` package supports this alternative method. It
+The same `desktopctl-plugin-0.9.6-windows-x64.zip` package supports this alternative method. It
 requires the `codex` command to be available on `PATH`.
 
 1. Extract the ZIP to any local directory. Preserve the directory structure.
