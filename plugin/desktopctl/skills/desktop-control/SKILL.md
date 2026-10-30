@@ -30,9 +30,10 @@ multi-monitor systems. Confirm the intended window and bounds before coordinate-
 
 ## Screenshots
 
-Omit `output` for routine captures. The tool creates a quality-95 JPG in the `screenshots` directory
-beside the executable and returns its absolute path, containing directory, image count, cleanup flag,
-and English status message. Use BMP only when lossless source pixels are explicitly required.
+Omit `output` for routine captures. The tool creates a quality-95 JPG in the stable
+`DesktopCTL\screenshots` folder under the current user's system temporary directory and returns its
+absolute path, containing directory, image count, cleanup flag, and English status message. Use BMP
+only when lossless source pixels are explicitly required.
 
 Use `mode: "window"` with a window ID for a specific app window. Use `mode: "region"` only after the
 requested physical-pixel bounds are known. If `cleanupRecommended` is true, report the returned

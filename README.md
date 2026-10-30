@@ -114,8 +114,12 @@ Key names include letters, digits, `F1` through `F24`, `enter`, `tab`, `space`, 
 
 ## Screenshot output and cleanup guidance
 
-Running `desktopctl screenshot` captures the virtual desktop and creates a `screenshots`
-directory beside the EXE. The default filename has the form
+Running `desktopctl screenshot` captures the virtual desktop and creates the stable
+`%TEMP%\DesktopCTL\screenshots` directory for the current Windows user. This avoids requiring write
+access beside the EXE when the tool is installed under `Program Files` or another protected
+location. The same directory is reused by later commands, so its existing images remain part of
+the cleanup count. If the operating system removes the temporary directory, the next default
+capture creates it again. The default filename has the form
 `screenshot_YYYYMMDD_HHMMSS_mmm.jpg`. Region coordinates are physical pixels in the virtual
 desktop and may be negative on multi-monitor systems. JPEG is the default and uses quality 95.
 Paths ending in `.jpg` or `.jpeg` use the JPEG encoder; `.bmp` remains available for uncompressed
@@ -132,8 +136,8 @@ stdout:
 ```json
 {
   "success": true,
-  "path": "D:\\tools\\screenshots\\screenshot_20261029_180000_123.jpg",
-  "directory": "D:\\tools\\screenshots",
+  "path": "C:\\Users\\example\\AppData\\Local\\Temp\\DesktopCTL\\screenshots\\screenshot_20261029_180000_123.jpg",
+  "directory": "C:\\Users\\example\\AppData\\Local\\Temp\\DesktopCTL\\screenshots",
   "imageCount": 51,
   "cleanupRecommended": true,
   "message": "Screenshot saved. The output directory contains 51 image file(s). More than 50 images are present; remove screenshots you no longer need."
@@ -264,9 +268,9 @@ cmake --install build-vs2019 --config Release --prefix build-vs2019\install
 ```
 
 The package is written under `build-vs2019\package`. Use
-`desktopctl-plugin-0.9.0-upload.zip` with the desktop Plugins directory command
+`desktopctl-plugin-0.9.1-upload.zip` with the desktop Plugins directory command
 `Add > Upload plugin archive`; after upload, select `Install plugin` on the parsed plugin details
-page. The separate `desktopctl-plugin-0.9.0-windows-x64.zip` package supports the PowerShell
+page. The separate `desktopctl-plugin-0.9.1-windows-x64.zip` package supports the PowerShell
 installer workflow. Its marketplace uses `./plugins/desktopctl`, and `mcp.json` launches
 `${PLUGIN_ROOT}/bin/desktopctl.exe`; no development directory, fixed drive letter, or source-tree
 path is embedded. The PowerShell package installer copies the marketplace to a current-user

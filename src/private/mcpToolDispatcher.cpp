@@ -98,8 +98,8 @@ JsonValue McpToolDispatcher::toolDefinitions() const
     tools.push_back(tool(
         "screenshot_capture",
         "Capture the full virtual desktop, a region, or one application window. The default is a "
-        "quality-95 JPG in the screenshots directory beside the executable. The result includes "
-        "the absolute path, image count, and cleanup guidance.",
+        "quality-95 JPG in DesktopCTL\\screenshots under the current user's system temporary "
+        "directory. The result includes the absolute path, image count, and cleanup guidance.",
         schema({
             {"mode", enumProperty({JsonValue("full"), JsonValue("region"), JsonValue("window")},
                  "Capture mode. Defaults to full.")},

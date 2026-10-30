@@ -5,6 +5,13 @@ if(NOT DEFINED DESKTOPCTL_TEST_DIR)
     message(FATAL_ERROR "DESKTOPCTL_TEST_DIR is missing")
 endif()
 
+# The session is a per-login singleton, so a previous manual run must not affect this test.
+execute_process(
+    COMMAND "${DESKTOPCTL_EXE}" session stop
+    OUTPUT_QUIET
+    ERROR_QUIET
+)
+
 file(MAKE_DIRECTORY "${DESKTOPCTL_TEST_DIR}")
 set(requestFile "${DESKTOPCTL_TEST_DIR}/mcpLifecycle.jsonl")
 file(WRITE "${requestFile}"

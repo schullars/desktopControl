@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 cmake_policy(SET CMP0091 NEW)
 
-project(desktopctl VERSION 0.9.0 LANGUAGES CXX)
+project(desktopctl VERSION 0.9.1 LANGUAGES CXX)
 
 option(DESKTOPCTL_BUILD_TESTS "Build desktopctl smoke tests" ON)
 
@@ -91,6 +91,7 @@ if(DESKTOPCTL_BUILD_TESTS)
         add_test(NAME desktopctl_help_screenshot_json COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_jpeg COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_jpeg_policy COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_temp_screenshot_directory COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_session_gate COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_idle_timeout COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_per_monitor COMMAND desktopctl -H)
@@ -127,6 +128,9 @@ if(DESKTOPCTL_BUILD_TESTS)
         )
         set_tests_properties(desktopctl_help_jpeg_policy PROPERTIES
             PASS_REGULAR_EXPRESSION "Use JPG for all routine screenshots"
+        )
+        set_tests_properties(desktopctl_help_temp_screenshot_directory PROPERTIES
+            PASS_REGULAR_EXPRESSION "system temporary"
         )
         set_tests_properties(desktopctl_help_session_gate PROPERTIES
             PASS_REGULAR_EXPRESSION "Mandatory session gate"

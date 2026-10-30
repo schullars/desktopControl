@@ -79,7 +79,9 @@ public:
     /// <summary>
     /// Captures the entire virtual desktop.
     /// </summary>
-    /// <param name="outputPath">Optional JPEG or BMP path; empty uses a JPEG beside the EXE.</param>
+    /// <param name="outputPath">
+    /// Optional JPEG or BMP path; empty uses the system temporary directory.
+    /// </param>
     /// <returns>Absolute path, directory image count, and cleanup advice on success.</returns>
     ScreenshotResult captureDesktop(const std::optional<std::string>& outputPath = std::nullopt);
 

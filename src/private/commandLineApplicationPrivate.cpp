@@ -226,8 +226,9 @@ Keyboard control:
 Screenshots:
   desktopctl screenshot
   desktopctl screenshot full [OUTPUT.jpg]
-      Capture the virtual desktop. Without OUTPUT, save beside the EXE in screenshots using
-      a local timestamp, for example screenshot_20261029_173045_123.jpg.
+      Capture the virtual desktop. Without OUTPUT, save under the current user's system temporary
+      directory in DesktopCTL\screenshots using a local timestamp, for example
+      screenshot_20261029_173045_123.jpg.
   desktopctl screenshot region X Y WIDTH HEIGHT [OUTPUT.jpg]
       Capture a physical-pixel region fully contained in the virtual desktop.
   desktopctl screenshot window "ID_OR_NAME" [OUTPUT.jpg]
@@ -270,7 +271,9 @@ Screenshot JSON result:
   message
       English capture status and cleanup guidance.
 
-  The default directory is screenshots beside desktopctl.exe, not the current shell directory.
+  The default directory is %TEMP%\DesktopCTL\screenshots on Windows, not the executable or current
+  shell directory. The stable directory is reused across commands so earlier images remain in the
+  count. If the operating system removes it, the next default capture creates it again.
   Relative OUTPUT paths are resolved from the current directory, but JSON paths are absolute.
   A system capture failure writes success=false JSON to stderr and returns exit code 3.
   Invalid command arguments write an error to stderr and return exit code 2.

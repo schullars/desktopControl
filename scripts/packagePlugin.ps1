@@ -18,10 +18,24 @@ if (-not (Test-Path -LiteralPath $ExecutablePath -PathType Leaf)) {
     throw "Executable not found: $ExecutablePath"
 }
 
-$packageName = "desktopctl-plugin-0.9.0-windows-x64"
+$pluginManifestPath = Join-Path $repositoryRoot "plugin\desktopctl\plugin.json"
+$pluginManifest = Get-Content -LiteralPath $pluginManifestPath -Raw | ConvertFrom-Json
+$packageVersion = [string]$pluginManifest.version
+if ([string]::IsNullOrWhiteSpace($packageVersion)) {
+    throw "Plugin version is missing from: $pluginManifestPath"
+}
+$cmakeContents = Get-Content -LiteralPath (Join-Path $repositoryRoot "CMakeLists.txt") -Raw
+if ($cmakeContents -notmatch 'project\(desktopctl VERSION ([0-9]+\.[0-9]+\.[0-9]+) LANGUAGES CXX\)') {
+    throw "Unable to read the desktopctl version from CMakeLists.txt"
+}
+if ($Matches[1] -ne $packageVersion) {
+    throw "Version mismatch: CMake reports $($Matches[1]), plugin.json reports $packageVersion"
+}
+
+$packageName = "desktopctl-plugin-$packageVersion-windows-x64"
 $stageRoot = Join-Path $OutputDirectory $packageName
 $zipPath = Join-Path $OutputDirectory "$packageName.zip"
-$uploadZipPath = Join-Path $OutputDirectory "desktopctl-plugin-0.9.0-upload.zip"
+$uploadZipPath = Join-Path $OutputDirectory "desktopctl-plugin-$packageVersion-upload.zip"
 if (Test-Path -LiteralPath $stageRoot) {
     $stageLeaf = Split-Path -Leaf $stageRoot
     if ($stageLeaf -ne $packageName) {

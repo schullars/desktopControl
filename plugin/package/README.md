@@ -15,12 +15,12 @@ or an external JSON library. Windows system DLLs are supplied by the operating s
 
 ## Install through the desktop user interface
 
-Use `desktopctl-plugin-0.9.0-upload.zip` for this installation method. Do not extract it.
+Use `desktopctl-plugin-0.9.1-upload.zip` for this installation method. Do not extract it.
 
 1. Open ChatGPT Desktop and switch to the ChatGPT surface if the app is showing Codex.
 2. Open the Plugins directory.
 3. Select `Add`, then `Upload plugin archive`.
-4. Select `desktopctl-plugin-0.9.0-upload.zip` and choose `Add plugin`.
+4. Select `desktopctl-plugin-0.9.1-upload.zip` and choose `Add plugin`.
 5. On the Desktop Control details page, choose `Install plugin`.
 6. Wait until Desktop Control appears under `Installed` and the page shows `Manage` and `Try now`.
 7. Open a new local chat before testing the plugin.
@@ -30,7 +30,7 @@ plugin details page alone does not mean installation is complete.
 
 ## Install through PowerShell
 
-Use `desktopctl-plugin-0.9.0-windows-x64.zip` for this alternative method. It requires the `codex`
+Use `desktopctl-plugin-0.9.1-windows-x64.zip` for this alternative method. It requires the `codex`
 command to be available on `PATH`.
 
 1. Extract the ZIP to any local directory. Preserve the directory structure.
@@ -78,7 +78,8 @@ immediately after `session_stop`.
 All package-internal paths are relative to the marketplace or plugin root. Screenshot results return
 absolute runtime paths because callers need to open the generated files and because actual Windows
 paths may contain non-ASCII characters. Omitting the screenshot output path creates a quality-95 JPG
-inside `bin\screenshots` in the installed plugin copy.
+inside the stable `%TEMP%\DesktopCTL\screenshots` directory for the current user. This remains
+writable when the plugin or executable is installed under a protected system directory.
 
 ## Uninstall
 

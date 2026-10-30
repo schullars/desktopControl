@@ -308,20 +308,10 @@ OperationResult ScreenCapturePrivate::resolveOutputPath(
         return {true, {}};
     }
 
-    std::wstring executablePath(32768, L'\0');
-    const DWORD pathLength = GetModuleFileNameW(nullptr, executablePath.data(),
-                                                static_cast<DWORD>(executablePath.size()));
-    if (pathLength == 0 || pathLength >= executablePath.size()) {
-        return windowsFailure("GetModuleFileName");
-    }
-    executablePath.resize(pathLength);
-    const std::filesystem::path directory =
-        std::filesystem::path(executablePath).parent_path() / L"screenshots";
-    std::error_code directoryError;
-    std::filesystem::create_directories(directory, directoryError);
-    if (directoryError) {
-        return {false, "Unable to create the default screenshots directory: "
-                           + directoryError.message()};
+    std::filesystem::path directory;
+    const OperationResult directoryResolution = resolveDefaultOutputDirectory(directory);
+    if (!directoryResolution.success) {
+        return directoryResolution;
     }
 
     SYSTEMTIME time{};
@@ -339,6 +329,52 @@ OperationResult ScreenCapturePrivate::resolveOutputPath(
     if (std::filesystem::exists(outputPath)) {
         return {false, "Unable to allocate a unique timestamped screenshot filename."};
     }
+    return {true, {}};
+}
+
+OperationResult ScreenCapturePrivate::resolveDefaultOutputDirectory(
+    std::filesystem::path& directory)
+{
+    if (_defaultOutputDirectory) {
+        directory = *_defaultOutputDirectory;
+        return {true, {}};
+    }
+
+    std::wstring temporaryPath(MAX_PATH + 1U, L'\0');
+    DWORD pathLength = GetTempPathW(static_cast<DWORD>(temporaryPath.size()),
+                                    temporaryPath.data());
+    if (pathLength == 0) {
+        return windowsFailure("GetTempPath");
+    }
+    if (pathLength >= temporaryPath.size()) {
+        temporaryPath.resize(static_cast<std::size_t>(pathLength) + 1U, L'\0');
+        pathLength = GetTempPathW(static_cast<DWORD>(temporaryPath.size()),
+                                  temporaryPath.data());
+        if (pathLength == 0 || pathLength >= temporaryPath.size()) {
+            return windowsFailure("GetTempPath");
+        }
+    }
+    temporaryPath.resize(pathLength);
+
+    const std::filesystem::path candidate =
+        std::filesystem::path(temporaryPath) / L"DesktopCTL" / L"screenshots";
+    std::error_code directoryError;
+    std::filesystem::create_directories(candidate, directoryError);
+    if (directoryError) {
+        return {false, "Unable to create the default screenshots directory: "
+                           + directoryError.message()};
+    }
+    const bool isDirectory = std::filesystem::is_directory(candidate, directoryError);
+    if (directoryError) {
+        return {false, "Unable to inspect the default screenshots directory: "
+                           + directoryError.message()};
+    }
+    if (!isDirectory) {
+        return {false, "The default screenshots path exists but is not a directory."};
+    }
+
+    _defaultOutputDirectory = candidate;
+    directory = candidate;
     return {true, {}};
 }
 

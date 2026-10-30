@@ -49,6 +49,7 @@ private:
                                   std::vector<WindowRecord>& windows,
                                   const WindowRecord*& selected);
     OperationResult requestWindowActivation(HWND window);
+    OperationResult resolveDefaultOutputDirectory(std::filesystem::path& directory);
     OperationResult resolveOutputPath(const std::optional<std::string>& requestedPath,
                                       const std::wstring& prefix,
                                       std::filesystem::path& outputPath);
@@ -65,6 +66,8 @@ private:
                              const std::vector<std::uint8_t>& pixels);
     OperationResult writeJpeg(const std::filesystem::path& outputPath, int width, int height,
                               const std::vector<std::uint8_t>& pixels);
+    // Keep every default capture in this process bound to the same verified directory.
+    std::optional<std::filesystem::path> _defaultOutputDirectory;
 #endif
 };
 
