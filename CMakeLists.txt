@@ -142,6 +142,7 @@ if(DESKTOPCTL_BUILD_TESTS)
             COMMAND ${CMAKE_COMMAND}
                 "-DDESKTOPCTL_EXE=$<TARGET_FILE:desktopctl>"
                 "-DDESKTOPCTL_TEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/test"
+                "-DDESKTOPCTL_EMULATOR=${CMAKE_CROSSCOMPILING_EMULATOR}"
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/test/mcpLifecycle.cmake"
         )
         if(WIN32)

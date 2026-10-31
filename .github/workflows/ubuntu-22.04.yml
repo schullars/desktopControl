@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
+  build-and-test-x86-64:
     runs-on: ubuntu-latest
     container: ubuntu:22.04
     steps:
@@ -25,6 +25,32 @@ jobs:
 
       - name: Build
         run: cmake --build build --parallel 2
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  build-and-test-aarch64:
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            build-essential cmake git pkg-config \
+            libx11-dev libxext-dev libjpeg-dev libpng-dev libglib2.0-dev \
+            libxtst6 libxrandr2
+
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-Werror
+
+      - name: Build
+        run: cmake --build build --parallel 2
+
+      - name: Verify architecture
+        run: readelf -h build/desktopctl | grep 'Machine:.*AArch64'
 
       - name: Test
         run: ctest --test-dir build --output-on-failure

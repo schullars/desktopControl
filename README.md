@@ -77,6 +77,38 @@ commands work on Ubuntu 22.04 aarch64 when the packages above are installed for 
 building is preferred; a cross build may instead provide an aarch64 toolchain file and matching
 sysroot packages.
 
+Cross-compile from an x86_64 Ubuntu 22.04 host after preparing an Ubuntu 22.04 aarch64 sysroot:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y g++-aarch64-linux-gnu qemu-user-static debootstrap
+sudo ./scripts/prepareUbuntuAarch64Sysroot.sh
+```
+
+Visual Studio 2019 does not include a Linux aarch64 GCC toolchain. On a Windows development host,
+run these commands in an Ubuntu 22.04 WSL terminal or in an Ubuntu 22.04 build virtual machine.
+The compiler may still be driven by CMake from Visual Studio after the WSL toolchain and sysroot
+are installed. The preparation script runs in the foreground, refuses to overwrite a nonempty
+incomplete sysroot, and accepts an alternate destination and mirror as its first two arguments.
+
+```bash
+cmake -S . -B build-linux-aarch64 \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/ubuntu-22.04-aarch64.cmake \
+  -DDESKTOPCTL_AARCH64_SYSROOT=/opt/desktopctl-arm64-rootfs
+cmake --build build-linux-aarch64 --parallel
+ctest --test-dir build-linux-aarch64 --output-on-failure
+./scripts/testAarch64X11.sh \
+  build-linux-aarch64/desktopctl /opt/desktopctl-arm64-rootfs
+```
+
+When `qemu-aarch64-static` is available, the toolchain registers it as CTest's cross-compiling
+emulator. This validates command parsing, MCP transport, image codecs, and other noninteractive
+tests under the ARM64 runtime. Real display-server and portal tests still require an ARM64 desktop
+or a QEMU system virtual machine. The optional X11 smoke script uses the host X server to validate
+the emulated aarch64 session, activity indicator, session IPC, and pointer backend without claiming
+to replace a full ARM64 desktop test.
+
 Linux dynamically loads XTest and XRandR runtime entry points so the public backend stays portable
 across x86_64 and aarch64. GIO, X11/Xext, JPEG, and PNG are normal dynamic Ubuntu dependencies.
 Wayland sessions also require XWayland, `xdg-desktop-portal`, and the desktop environment's portal

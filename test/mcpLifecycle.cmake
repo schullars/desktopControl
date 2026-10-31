@@ -5,9 +5,15 @@ if(NOT DEFINED DESKTOPCTL_TEST_DIR)
     message(FATAL_ERROR "DESKTOPCTL_TEST_DIR is missing")
 endif()
 
+set(desktopctlCommand)
+if(DEFINED DESKTOPCTL_EMULATOR AND NOT DESKTOPCTL_EMULATOR STREQUAL "")
+    list(APPEND desktopctlCommand ${DESKTOPCTL_EMULATOR})
+endif()
+list(APPEND desktopctlCommand "${DESKTOPCTL_EXE}")
+
 # The session is a per-login singleton, so a previous manual run must not affect this test.
 execute_process(
-    COMMAND "${DESKTOPCTL_EXE}" session stop
+    COMMAND ${desktopctlCommand} session stop
     OUTPUT_QUIET
     ERROR_QUIET
 )
@@ -26,7 +32,7 @@ file(WRITE "${requestFile}"
 )
 
 execute_process(
-    COMMAND "${DESKTOPCTL_EXE}" mcp serve
+    COMMAND ${desktopctlCommand} mcp serve
     INPUT_FILE "${requestFile}"
     RESULT_VARIABLE serverResult
     OUTPUT_VARIABLE serverOutput

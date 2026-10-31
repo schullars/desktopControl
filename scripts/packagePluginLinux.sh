@@ -20,16 +20,16 @@ if [[ -z "$package_version" || "$package_version" != "$cmake_version" ]]; then
     exit 1
 fi
 
-machine="$(uname -m)"
+machine="$(LC_ALL=C readelf -h "$executable_path" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')"
 case "$machine" in
-    x86_64|amd64)
+    *X86-64*|*x86-64*)
         package_architecture="x86_64"
         ;;
-    aarch64|arm64)
+    *AArch64*)
         package_architecture="aarch64"
         ;;
     *)
-        printf 'Unsupported Linux architecture: %s\n' "$machine" >&2
+        printf 'Unsupported Linux executable architecture: %s\n' "$machine" >&2
         exit 1
         ;;
 esac
