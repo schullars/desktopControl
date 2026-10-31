@@ -177,8 +177,8 @@ Mandatory session gate:
       Stop the background indicator, close all overlay windows, and clear the session state.
 
   Any command other than help or session start is rejected with exit code 3 when no session is
-  active. Session state is owned by Windows named kernel objects, not a configuration file. If the
-  background host exits or crashes, Windows releases the state automatically. The background host
+  active. Windows uses named kernel objects; Linux uses a protected per-user Unix socket and lock.
+  If the background host exits or crashes, the operating system releases the state. The host
   also exits automatically after three minutes without a non-help command. Help does not start or
   refresh a session. After an inactivity timeout, run session start again before another command.
 
@@ -195,8 +195,8 @@ Mandatory session gate:
 
 Mouse control:
   desktopctl mouse move X Y
-      Move to absolute physical-pixel coordinates on the virtual desktop. Coordinates may be
-      negative on multi-monitor desktops.
+      Move to absolute desktop coordinates. Windows and Xorg use physical pixels and may use
+      negative multi-monitor coordinates. Wayland uses portal logical stream coordinates.
   desktopctl mouse move-relative DX DY
       Move relative to the current pointer position in pixels.
   desktopctl mouse click BUTTON [COUNT]
@@ -205,7 +205,7 @@ Mouse control:
   desktopctl mouse up BUTTON
       Press or release a button separately. Always pair down with a later up.
   desktopctl mouse wheel DELTA [vertical|horizontal]
-      Scroll the wheel. One Windows notch is 120; negative values reverse direction.
+      Scroll the wheel. A magnitude of 120 is one notch; negative values reverse direction.
 
 Keyboard control:
   desktopctl keyboard press KEY
@@ -230,7 +230,7 @@ Keyboard control:
 
   Text input mode selection:
       1. Start with keyboard type for ordinary text. Hybrid mode maps every character available in
-         the foreground Windows keyboard layout to a physical key chord and falls back to Unicode
+         the foreground keyboard layout to a physical key chord and falls back to Unicode
          only for a character that has no physical mapping.
       2. Use type-physical when Unicode fallback must never occur, especially for an ASCII login,
          symbol, or password field inside a virtual machine or remote desktop. The command returns
@@ -240,7 +240,7 @@ Keyboard control:
 
       With a US keyboard layout, hybrid and physical modes generate @ as Shift+2 and # as Shift+3.
       Do not send those modifier combinations manually when TEXT already contains @ or #. The
-      foreground Windows layout and the guest or remote layout must agree. DesktopCTL does not
+      foreground host layout and the guest or remote layout must agree. DesktopCTL does not
       install, select, or synchronize a guest input method or keyboard layout.
 
       If ASCII letter case is inverted while symbols are correct, the host and guest Caps Lock
@@ -250,7 +250,7 @@ Keyboard control:
       reactivate the target, select the complete field, retype it, and capture another screenshot.
       Do not submit until the screenshot shows the exact intended case and symbols.
 
-      Command success means Windows accepted the generated input events. It cannot prove that a
+      Command success means the platform accepted the generated input events. It cannot prove that a
       virtual machine, remote client, browser, or input method produced the intended text. Activate
       the exact target, place the caret, enter the complete field, and verify the result with a
       target-window screenshot before submitting a login or another irreversible action.
@@ -270,7 +270,7 @@ Screenshots:
       directory in DesktopCTL\screenshots using a local timestamp, for example
       screenshot_20261029_173045_123.jpg.
   desktopctl screenshot region X Y WIDTH HEIGHT [OUTPUT.jpg]
-      Capture a physical-pixel region fully contained in the virtual desktop.
+      Capture a coordinate region fully contained in the desktop on Windows or Xorg.
   desktopctl screenshot window "ID_OR_NAME" [OUTPUT.jpg]
       Capture one application window by ID, exact title, or unique process name. Quote names
       containing spaces. Without OUTPUT, use a timestamped window_*.jpg name.
@@ -287,7 +287,7 @@ Screenshots:
 Window discovery and activation:
   desktopctl window list
       Write UTF-8 JSON containing id, title, processId, processName, minimized, active, and
-      physical-pixel bounds for visible titled top-level windows. IDs remain valid only while
+      desktop bounds for visible titled top-level windows on Windows or Xorg. IDs remain valid while
       their windows exist. active=true identifies the foreground window at enumeration time.
   desktopctl window activate "ID_OR_NAME"
       Restore a minimized target, request foreground activation, and verify the result. Use an
@@ -311,8 +311,9 @@ Screenshot JSON result:
   message
       English capture status and cleanup guidance.
 
-  The default directory is %TEMP%\DesktopCTL\screenshots on Windows, not the executable or current
-  shell directory. The stable directory is reused across commands so earlier images remain in the
+  The default directory is %TEMP%\DesktopCTL\screenshots on Windows or
+  ${TMPDIR:-/tmp}/DesktopCTL/screenshots on Linux, not the executable or current shell directory.
+  The stable directory is reused across commands so earlier images remain in the
   count. If the operating system removes it, the next default capture creates it again.
   Relative OUTPUT paths are resolved from the current directory, but JSON paths are absolute.
   A system capture failure writes success=false JSON to stderr and returns exit code 3.
@@ -334,14 +335,14 @@ Screenshot JSON result:
   instance is allowed per login session. Each active display receives its own complete border,
   including displays with negative coordinates, unequal sizes, or misaligned and L-shaped layouts.
   Connecting, disconnecting, or rearranging displays rebuilds the borders automatically.
-  Border windows periodically reassert their topmost Z-order so the Windows taskbar cannot
+  Border windows periodically reassert their topmost Z-order so a taskbar or panel cannot
   permanently cover a screen edge. This maintenance does not activate the overlay or intercept
   mouse input.
 
 Application discovery and launch:
   desktopctl app list
-      Write UTF-8 JSON for launchable items in the current user's Windows AppsFolder. Each item
-      has a stable id and display name and may represent a desktop or Microsoft Store app.
+      Write UTF-8 JSON for launchable items in Windows AppsFolder or the Linux desktop application
+      catalog. Each item has a stable id and display name.
   desktopctl app open ID_OR_NAME
       Open an item by an ID returned from app list or by a unique exact display name. Quote names
       containing spaces. Use the ID when a name is ambiguous.
@@ -386,7 +387,7 @@ Virtual-machine text workflow (PowerShell):
 
   Use keyboard type instead of type-physical when the text may contain characters unavailable in
   the foreground physical layout and the target is known to accept Unicode packet input.
-  If ASCII letter case is inverted, activate a local Windows window outside the VM client, run
+  If ASCII letter case is inverted, activate a local host window outside the VM client, run
   keyboard press capslock once to change only the host state, reactivate the VM, repeat ctrl+a and
   type-physical for the complete field, and capture a new screenshot before submitting.
 
@@ -419,6 +420,32 @@ Browser workflow (PowerShell):
   the selected ID with both commands below:
       desktopctl window activate "0xWINDOW_ID"
       desktopctl screenshot window "0xWINDOW_ID"
+
+Ubuntu display platform compatibility:
+  Xorg/X11 provides the complete desktopctl feature set: multi-monitor overlay and pointer halo,
+  absolute and relative input, layout-backed physical text, full/region/window capture, global
+  window discovery, and verified activation. Application discovery uses the freedesktop desktop
+  application catalog through GIO.
+
+  Wayland uses XDG Desktop Portal RemoteDesktop for pointer and keyboard input and the Screenshot
+  portal for full-screen capture. This common path supports portal implementations used by GNOME
+  Shell and KDE Plasma. session start may show a compositor authorization dialog. The portal
+  reports logical stream coordinates, which must be used for absolute pointer movement.
+  type-physical is unavailable because the standard portal accepts keysyms but does not expose
+  target-layout scan-code discovery; use type, type-unicode, or an Xorg login session.
+
+  Standard Wayland intentionally provides no compositor-independent global window list, arbitrary
+  forced activation, coordinate region capture, or programmatic target-window capture. These
+  commands return an explanatory error instead of false success. The required green border and
+  pointer halo use XWayland because unrestricted global overlay placement is not a standard
+  Wayland capability. session start fails visibly if XWayland is unavailable.
+
+  Ubuntu Bash lifecycle:
+      tool=./desktopctl
+      "$tool" session start || exit 1
+      trap '"$tool" session stop >/dev/null 2>&1 || true' EXIT
+      "$tool" app list
+      "$tool" screenshot
 
 Exit codes:
   0  Success

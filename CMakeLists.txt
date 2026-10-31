@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 cmake_policy(SET CMP0091 NEW)
 
-project(desktopctl VERSION 0.9.7 LANGUAGES CXX)
+project(desktopctl VERSION 0.10.0 LANGUAGES CXX)
 
 option(DESKTOPCTL_BUILD_TESTS "Build desktopctl smoke tests" ON)
 
@@ -65,11 +65,40 @@ if(WIN32)
     )
     target_link_libraries(desktopctl PRIVATE dwmapi gdi32 gdiplus ole32 propsys shell32 user32)
 elseif(UNIX AND NOT APPLE)
+    find_package(JPEG REQUIRED)
+    find_package(PNG REQUIRED)
+    find_package(PkgConfig REQUIRED)
+    find_package(Threads REQUIRED)
+    find_package(X11 REQUIRED)
+    pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0 gio-unix-2.0)
+    if(NOT X11_Xext_FOUND)
+        message(FATAL_ERROR "The X11 Xext development library is required")
+    endif()
     target_sources(desktopctl PRIVATE
         src/platform/linux/activityIndicatorLinux.cpp
         src/platform/linux/applicationCatalogLinux.cpp
         src/platform/linux/desktopAutomationLinux.cpp
         src/platform/linux/screenCaptureLinux.cpp
+        src/platform/linux/private/linuxActivityOverlay.cpp
+        src/platform/linux/private/linuxActivityOverlay.h
+        src/platform/linux/private/linuxImageCodec.cpp
+        src/platform/linux/private/linuxImageCodec.h
+        src/platform/linux/private/linuxPortal.cpp
+        src/platform/linux/private/linuxPortal.h
+        src/platform/linux/private/linuxPortalRemoteDesktop.cpp
+        src/platform/linux/private/linuxPortalRemoteDesktop.h
+        src/platform/linux/private/linuxSessionIpc.cpp
+        src/platform/linux/private/linuxSessionIpc.h
+    )
+    target_compile_definitions(desktopctl PRIVATE _FILE_OFFSET_BITS=64)
+    target_link_libraries(desktopctl PRIVATE
+        JPEG::JPEG
+        PNG::PNG
+        PkgConfig::GIO
+        Threads::Threads
+        X11::X11
+        X11::Xext
+        ${CMAKE_DL_LIBS}
     )
 else()
     message(FATAL_ERROR "desktopctl currently supports only Windows and Linux targets")
@@ -106,6 +135,8 @@ if(DESKTOPCTL_BUILD_TESTS)
         add_test(NAME desktopctl_help_vm_text_workflow COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_guest_caps_lock COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_taskbar_z_order COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_ubuntu_platforms COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_wayland_limits COMMAND desktopctl -H)
         add_test(
             NAME desktopctl_mcp_lifecycle
             COMMAND ${CMAKE_COMMAND}
@@ -169,6 +200,24 @@ if(DESKTOPCTL_BUILD_TESTS)
                     "-DDESKTOPCTL_EXE=$<TARGET_FILE:desktopctl>"
                     -P "${CMAKE_CURRENT_SOURCE_DIR}/test/sessionLifecycle.cmake"
             )
+        elseif(UNIX AND NOT APPLE)
+            add_executable(desktopctl_linux_image_codec_tests
+                test/linuxImageCodecTests.cpp
+                src/platform/linux/private/linuxImageCodec.cpp
+                src/platform/linux/private/linuxImageCodec.h
+            )
+            target_include_directories(desktopctl_linux_image_codec_tests
+                PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+            )
+            target_compile_features(desktopctl_linux_image_codec_tests PRIVATE cxx_std_17)
+            target_compile_options(desktopctl_linux_image_codec_tests
+                PRIVATE -Wall -Wextra -Wpedantic
+            )
+            target_link_libraries(desktopctl_linux_image_codec_tests
+                PRIVATE JPEG::JPEG PNG::PNG
+            )
+            add_test(NAME desktopctl_linux_image_codec
+                     COMMAND desktopctl_linux_image_codec_tests)
         endif()
         set_tests_properties(desktopctl_help PROPERTIES
             PASS_REGULAR_EXPRESSION "Browser workflow"
@@ -226,6 +275,12 @@ if(DESKTOPCTL_BUILD_TESTS)
         )
         set_tests_properties(desktopctl_help_taskbar_z_order PROPERTIES
             PASS_REGULAR_EXPRESSION "permanently cover a screen edge"
+        )
+        set_tests_properties(desktopctl_help_ubuntu_platforms PROPERTIES
+            PASS_REGULAR_EXPRESSION "Ubuntu display platform compatibility"
+        )
+        set_tests_properties(desktopctl_help_wayland_limits PROPERTIES
+            PASS_REGULAR_EXPRESSION "global window list, arbitrary"
         )
     endif()
 endif()

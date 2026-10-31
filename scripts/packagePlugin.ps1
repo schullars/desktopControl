@@ -115,7 +115,11 @@ $checksums = Get-ChildItem -LiteralPath $stageRoot -File -Recurse |
     Where-Object { $_.Name -ne "checksums.sha256" } |
     Sort-Object FullName |
     ForEach-Object {
-        $relativePath = [System.IO.Path]::GetRelativePath($stageRoot, $_.FullName).Replace("\", "/")
+        if (-not $_.FullName.StartsWith($stageRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Package file escaped the staging directory: $($_.FullName)"
+        }
+        $relativePath = $_.FullName.Substring($stageRoot.Length)
+        $relativePath = $relativePath.TrimStart([char[]]@('\', '/')).Replace("\", "/")
         $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
         "$hash  $relativePath"
     }

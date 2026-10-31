@@ -75,7 +75,7 @@ JsonValue McpToolDispatcher::toolDefinitions() const
             {"button", enumProperty({JsonValue("left"), JsonValue("right"), JsonValue("middle")},
                  "Button used by click, down, or up.")},
             {"count", integerProperty("Click count from 1 through 100. Defaults to 1.")},
-            {"delta", integerProperty("Wheel delta. One Windows notch is 120.")},
+            {"delta", integerProperty("Wheel delta. A magnitude of 120 is one notch.")},
             {"direction", enumProperty({JsonValue("vertical"), JsonValue("horizontal")},
                  "Wheel direction. Defaults to vertical.")}
         }, {JsonValue("action")}), false));
@@ -103,9 +103,10 @@ JsonValue McpToolDispatcher::toolDefinitions() const
         }, {JsonValue("action")}), false));
     tools.push_back(tool(
         "screenshot_capture",
-        "Capture the full virtual desktop, a region, or one application window. The default is a "
-        "quality-95 JPG in DesktopCTL\\screenshots under the current user's system temporary "
-        "directory. The result includes the absolute path, image count, and cleanup guidance.",
+        "Capture the full desktop, a coordinate region, or one application window when supported "
+        "by the active display protocol. The default is a quality-95 JPG in DesktopCTL/screenshots "
+        "under the current user's system temporary directory. The result includes the absolute "
+        "path, image count, and cleanup guidance.",
         schema({
             {"mode", enumProperty({JsonValue("full"), JsonValue("region"), JsonValue("window")},
                  "Capture mode. Defaults to full.")},
@@ -120,17 +121,19 @@ JsonValue McpToolDispatcher::toolDefinitions() const
     tools.push_back(tool(
         "window_list",
         "List visible titled top-level windows with transient IDs, process data, active state, "
-        "and physical-pixel bounds.",
+        "and bounds. Supported on Windows and Xorg; standard Wayland does not expose a global "
+        "window list.",
         schema({}, {}), true));
     tools.push_back(tool(
         "window_activate",
-        "Restore and force activation of a window by transient ID, exact title, or unique process "
-        "name, then verify that it is in the foreground.",
+        "Restore and activate a window by transient ID, exact title, or unique process name on "
+        "Windows or Xorg. Standard Wayland does not permit arbitrary forced activation.",
         schema({{"target", stringProperty("Window ID, exact title, or unique process name.")}},
                {JsonValue("target")}), false));
     tools.push_back(tool(
         "app_list",
-        "List applications that the current Windows user can launch from AppsFolder.",
+        "List applications available to the current user from the Windows AppsFolder or Linux "
+        "desktop application catalog.",
         schema({}, {}), true));
     tools.push_back(tool(
         "app_open",

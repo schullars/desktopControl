@@ -35,6 +35,14 @@ private:
 
     bool comAvailable_ = false;
     bool uninitializeCom_ = false;
+#elif defined(__linux__)
+    struct ApplicationRecord {
+        ApplicationInfo info;
+        std::string desktopId;
+    };
+
+    static std::string lowerAscii(const std::string& value);
+    OperationResult discover(std::vector<ApplicationRecord>& applications);
 #endif
 };
 

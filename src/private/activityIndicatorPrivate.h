@@ -3,12 +3,16 @@
 #include "desktopAutomation.h"
 
 #include <cstdint>
+#include <memory>
+#include <string>
 #include <vector>
 
 #if defined(_WIN32)
 #include <Windows.h>
 
 #include <atomic>
+#elif defined(__linux__)
+#include <csignal>
 #endif
 
 namespace desktopctl {
@@ -84,6 +88,16 @@ private:
     HANDLE stopEvent_ = nullptr;
     HANDLE readyEvent_ = nullptr;
     HANDLE activityEvent_ = nullptr;
+#elif defined(__linux__)
+    static constexpr int SessionIdleTimeoutSeconds = 3 * 60;
+
+    static void handleSignal(int signalNumber);
+    OperationResult handleLinuxRequest(const std::string& request, bool& stopRequested);
+
+    inline static volatile std::sig_atomic_t stopSignal_ = 0;
+    std::unique_ptr<class LinuxSessionServer> linuxServer_;
+    std::unique_ptr<class LinuxActivityOverlay> linuxOverlay_;
+    std::unique_ptr<class LinuxPortalRemoteDesktop> linuxPortal_;
 #endif
 };
 

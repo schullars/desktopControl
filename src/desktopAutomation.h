@@ -20,14 +20,14 @@ enum class WheelDirection {
 };
 
 /// <summary>
-/// Selects how text characters are converted into Windows keyboard input events.
+/// Selects how text characters are converted into platform keyboard input events.
 /// </summary>
 enum class TextInputMode {
     /// Prefer physical scan codes and fall back to Unicode for unmapped characters.
     Hybrid,
     /// Require every character to be representable by the active keyboard layout.
     Physical,
-    /// Send every UTF-16 code unit through Windows Unicode packet input.
+    /// Send text through the platform Unicode input mechanism.
     Unicode
 };
 
@@ -47,10 +47,10 @@ public:
     DesktopAutomation& operator=(DesktopAutomation&&) noexcept;
 
     /// <summary>
-    /// Moves the pointer to absolute physical-pixel coordinates on the virtual desktop.
+    /// Moves the pointer to absolute desktop coordinates.
     /// </summary>
-    /// <param name="x">The virtual desktop x-coordinate, which may be negative.</param>
-    /// <param name="y">The virtual desktop y-coordinate, which may be negative.</param>
+    /// <param name="x">The desktop x-coordinate, which may be negative on Xorg or Windows.</param>
+    /// <param name="y">The desktop y-coordinate, which may be negative on Xorg or Windows.</param>
     /// <returns>The operation result, including platform error details on failure.</returns>
     OperationResult moveMouse(int x, int y);
 
@@ -87,7 +87,7 @@ public:
     /// <summary>
     /// Scrolls the vertical or horizontal wheel.
     /// </summary>
-    /// <param name="delta">The scroll amount. One Windows wheel notch is 120.</param>
+    /// <param name="delta">The scroll amount. A magnitude of 120 represents one notch.</param>
     /// <param name="direction">The scroll direction.</param>
     /// <returns>The operation result.</returns>
     OperationResult scrollMouse(int delta, WheelDirection direction);

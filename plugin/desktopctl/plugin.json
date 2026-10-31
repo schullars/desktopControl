@@ -1,28 +1,28 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "desktopctl",
-  "version": "0.9.7",
-  "description": "Control the local Windows desktop with visible green activity indicators.",
+  "version": "0.10.0",
+  "description": "Control a local Windows or Ubuntu desktop with visible green activity indicators.",
   "author": {
     "name": "Schullar",
     "email": "schullar@outlook.com"
   },
-  "keywords": ["desktop", "automation", "screenshot", "windows"],
+  "keywords": ["desktop", "automation", "screenshot", "windows", "ubuntu", "linux"],
   "extensions": {
     "com.openai": {
       "requires_local_executor": true,
       "interface": {
         "displayName": "Desktop Control",
         "developerName": "Schullar",
-        "shortDescription": "Control Windows apps and input",
-        "longDescription": "A desktop-only plugin that exposes the portable desktopctl executable as structured local tools. Every desktop operation requires a visible green activity session.",
+        "shortDescription": "Control local apps and input",
+        "longDescription": "A local plugin that exposes desktopctl as structured tools on Windows and Ubuntu. Every desktop operation requires a visible green activity session.",
         "category": "Productivity",
         "capabilities": ["Read", "Write"],
         "brandColor": "#22C55E",
         "composerIcon": "./assets/composer-icon.svg",
         "logo": "./assets/logo.svg",
         "defaultPrompt": [
-          "Use Desktop Control to list the available applications on this Windows computer.",
+          "Use Desktop Control to list the available applications on this computer.",
           "Use Desktop Control to open an application, activate its window, and take a screenshot."
         ]
       }

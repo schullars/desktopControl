@@ -73,7 +73,7 @@ public:
     /// Restores and activates a top-level window, then verifies foreground ownership.
     /// </summary>
     /// <param name="idOrName">A window ID, exact title, or unique process name.</param>
-    /// <returns>Failure when Windows does not grant foreground activation.</returns>
+    /// <returns>Failure when the platform cannot or does not grant activation.</returns>
     OperationResult activateWindow(const std::string& idOrName);
 
     /// <summary>
@@ -86,7 +86,7 @@ public:
     ScreenshotResult captureDesktop(const std::optional<std::string>& outputPath = std::nullopt);
 
     /// <summary>
-    /// Captures a physical-pixel region of the virtual desktop.
+    /// Captures a desktop region when the active display protocol supports coordinate capture.
     /// </summary>
     /// <param name="region">A region fully contained within the virtual desktop.</param>
     /// <param name="outputPath">Optional JPEG or BMP path; empty uses the default directory.</param>
@@ -100,7 +100,7 @@ public:
     /// </summary>
     /// <param name="idOrName">A window ID, title, or process name with a unique match.</param>
     /// <param name="outputPath">Optional JPEG or BMP path; empty uses the default directory.</param>
-    /// <returns>The result of a target-aware PrintWindow capture.</returns>
+    /// <returns>The target-aware capture result.</returns>
     ScreenshotResult captureWindow(
         const std::string& idOrName,
         const std::optional<std::string>& outputPath = std::nullopt);
