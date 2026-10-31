@@ -39,6 +39,8 @@ private:
     };
 
     static constexpr UINT_PTR CursorTimerId = 1;
+    static constexpr UINT CursorTimerIntervalMilliseconds = 16;
+    static constexpr ULONGLONG BorderZOrderMaintenanceIntervalMilliseconds = 250;
     static constexpr int BorderThickness = 14;
     static constexpr int BorderMaximumAlpha = 145;
     static constexpr int CursorOverlaySize = 64;
@@ -71,11 +73,13 @@ private:
     bool renderBorder(const BorderWindow& border, int x, int y, int width, int height);
     bool renderCursor();
     void updateCursorPosition();
+    void maintainOverlayZOrder();
     bool updateLayeredPixels(HWND window, int x, int y, int width, int height,
                              const std::vector<std::uint32_t>& pixels);
 
     std::vector<BorderWindow> borders_;
     HWND cursorWindow_ = nullptr;
+    ULONGLONG lastBorderZOrderMaintenanceTime_ = 0;
     HANDLE sessionMutex_ = nullptr;
     HANDLE stopEvent_ = nullptr;
     HANDLE readyEvent_ = nullptr;

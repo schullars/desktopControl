@@ -195,7 +195,9 @@ and misaligned or L-shaped layouts are supported. Connecting, disconnecting, or 
 displays rebuilds the borders automatically. The command returns after the detached host is ready.
 The host automatically closes the indicator after three minutes without an accepted non-help
 command. Run `desktopctl session stop` to close it immediately. Only one indicator instance is
-allowed in a login session.
+allowed in a login session. Border windows reassert their topmost Z-order every 250 milliseconds so
+the Windows taskbar cannot permanently cover a screen edge. This maintenance does not redraw the
+gradient, activate the overlay, or intercept mouse input.
 
 ## Keyboard combinations and literal text
 
@@ -338,7 +340,7 @@ cmake --install build-vs2019 --config Release --prefix build-vs2019\install
 ```
 
 The package is written under `build-vs2019\package`. Extract
-`desktopctl-plugin-0.9.6-windows-x64.zip`, open the desktop Plugins directory, select
+`desktopctl-plugin-0.9.7-windows-x64.zip`, open the desktop Plugins directory, select
 `Add > Add a marketplace`, and choose the extracted package root as a local folder. Install
 Desktop Control from the `Desktop Control Local` marketplace, restart the desktop app, and test
 the plugin in a new local chat. The same package also supports the PowerShell installer workflow.
@@ -347,7 +349,7 @@ Its marketplace uses `./plugins/desktopctl`, and `mcp.json` launches
 path is embedded. The PowerShell package installer copies the marketplace to a current-user
 location and uses `codex plugin marketplace add` followed by `codex plugin add`.
 
-`desktopctl-plugin-0.9.6-upload.zip` is reserved for an approved local-MCP submission workflow.
+`desktopctl-plugin-0.9.7-upload.zip` is reserved for an approved local-MCP submission workflow.
 Routine personal installation must use the local marketplace package because archive upload can
 exclude local stdio MCP configuration when the submitting organization is not allowlisted.
 

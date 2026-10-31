@@ -11,7 +11,9 @@ Use the bundled structured tools for local Windows desktop operations.
 
 Call `session_start` before every other desktop tool. This makes the green per-monitor border and
 pointer halo visible. If a tool says the session is not started, call `session_start` again; the
-indicator closes automatically after three minutes without a tool call.
+indicator closes automatically after three minutes without a tool call. The border periodically
+reasserts its topmost Z-order so the Windows taskbar cannot permanently cover a screen edge without
+activating the overlay or blocking mouse input.
 
 Call `session_stop` after the requested desktop workflow completes or fails. Do not leave held mouse
 buttons or keys active. Pair every `down` action with a matching `up` action.

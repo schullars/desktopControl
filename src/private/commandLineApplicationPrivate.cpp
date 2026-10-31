@@ -325,7 +325,8 @@ Screenshot JSON result:
       Write-Host "Path: $($result.path); image count: $($result.imageCount)"
       if ($result.cleanupRecommended) { Write-Warning $result.message }
 
-Activity indicator behavior:
+)HELP";
+    std::cout << R"HELP(Activity indicator behavior:
   session start returns only after the green gradient border and pointer halo are ready. The
   detached host remains alive across later desktopctl invocations. Each accepted non-help command
   resets its inactivity deadline. After three minutes with no such command, the host exits and the
@@ -333,6 +334,9 @@ Activity indicator behavior:
   instance is allowed per login session. Each active display receives its own complete border,
   including displays with negative coordinates, unequal sizes, or misaligned and L-shaped layouts.
   Connecting, disconnecting, or rearranging displays rebuilds the borders automatically.
+  Border windows periodically reassert their topmost Z-order so the Windows taskbar cannot
+  permanently cover a screen edge. This maintenance does not activate the overlay or intercept
+  mouse input.
 
 Application discovery and launch:
   desktopctl app list

@@ -143,7 +143,8 @@ OperationResult ActivityIndicatorPrivate::run()
     if (!createOverlays()) {
         return {false, "Unable to create one or more activity-indicator overlay windows."};
     }
-    if (SetTimer(cursorWindow_, CursorTimerId, 16, nullptr) == 0) {
+    lastBorderZOrderMaintenanceTime_ = GetTickCount64();
+    if (SetTimer(cursorWindow_, CursorTimerId, CursorTimerIntervalMilliseconds, nullptr) == 0) {
         return {false, "Unable to start the activity-indicator cursor timer."};
     }
     if (SetEvent(readyEvent_) == FALSE) {
@@ -267,6 +268,12 @@ LRESULT ActivityIndicatorPrivate::handleWindowMessage(HWND window, UINT message,
 {
     if (message == WM_TIMER && window == cursorWindow_ && wParam == CursorTimerId) {
         updateCursorPosition();
+        const ULONGLONG currentTime = GetTickCount64();
+        if (currentTime - lastBorderZOrderMaintenanceTime_
+            >= BorderZOrderMaintenanceIntervalMilliseconds) {
+            maintainOverlayZOrder();
+            lastBorderZOrderMaintenanceTime_ = currentTime;
+        }
         return 0;
     }
     if (message == WM_DISPLAYCHANGE && window == cursorWindow_) {
@@ -499,6 +506,21 @@ void ActivityIndicatorPrivate::updateCursorPosition()
     SetWindowPos(cursorWindow_, HWND_TOPMOST, cursor.x - CursorOverlaySize / 2,
                  cursor.y - CursorOverlaySize / 2, 0, 0,
                  SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+}
+
+void ActivityIndicatorPrivate::maintainOverlayZOrder()
+{
+    constexpr UINT flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW;
+    // The taskbar is also topmost and can move above long-lived overlays. Reassert only the
+    // lightweight Z-order at a low frequency; do not redraw or rebuild monitor windows here.
+    for (const BorderWindow& border : borders_) {
+        if (border.handle != nullptr) {
+            SetWindowPos(border.handle, HWND_TOPMOST, 0, 0, 0, 0, flags);
+        }
+    }
+    if (cursorWindow_ != nullptr) {
+        SetWindowPos(cursorWindow_, HWND_TOPMOST, 0, 0, 0, 0, flags);
+    }
 }
 
 bool ActivityIndicatorPrivate::updateLayeredPixels(

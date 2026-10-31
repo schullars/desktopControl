@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 cmake_policy(SET CMP0091 NEW)
 
-project(desktopctl VERSION 0.9.6 LANGUAGES CXX)
+project(desktopctl VERSION 0.9.7 LANGUAGES CXX)
 
 option(DESKTOPCTL_BUILD_TESTS "Build desktopctl smoke tests" ON)
 
@@ -105,6 +105,7 @@ if(DESKTOPCTL_BUILD_TESTS)
         add_test(NAME desktopctl_help_text_mode_selection COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_vm_text_workflow COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_guest_caps_lock COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_taskbar_z_order COMMAND desktopctl -H)
         add_test(
             NAME desktopctl_mcp_lifecycle
             COMMAND ${CMAKE_COMMAND}
@@ -118,10 +119,14 @@ if(DESKTOPCTL_BUILD_TESTS)
                 src/platform/windows/private/keyboardInputWindows.cpp
                 src/platform/windows/private/keyboardInputWindows.h
             )
+            add_executable(desktopctl_activity_indicator_z_order_tests
+                test/activityIndicatorZOrderWindowsTests.cpp
+            )
             target_include_directories(desktopctl_keyboard_input_tests
                 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
             )
             target_compile_features(desktopctl_keyboard_input_tests PRIVATE cxx_std_17)
+            target_compile_features(desktopctl_activity_indicator_z_order_tests PRIVATE cxx_std_17)
             target_compile_definitions(desktopctl_keyboard_input_tests PRIVATE
                 NOMINMAX
                 UNICODE
@@ -130,6 +135,14 @@ if(DESKTOPCTL_BUILD_TESTS)
                 _WIN32_WINNT=0x0A00
             )
             target_link_libraries(desktopctl_keyboard_input_tests PRIVATE user32)
+            target_compile_definitions(desktopctl_activity_indicator_z_order_tests PRIVATE
+                NOMINMAX
+                UNICODE
+                _UNICODE
+                WIN32_LEAN_AND_MEAN
+                _WIN32_WINNT=0x0A00
+            )
+            target_link_libraries(desktopctl_activity_indicator_z_order_tests PRIVATE user32)
             if(MSVC)
                 set_property(TARGET desktopctl_keyboard_input_tests PROPERTY
                     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
@@ -137,8 +150,19 @@ if(DESKTOPCTL_BUILD_TESTS)
                 target_compile_options(desktopctl_keyboard_input_tests
                     PRIVATE /W4 /permissive- /utf-8
                 )
+                set_property(TARGET desktopctl_activity_indicator_z_order_tests PROPERTY
+                    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+                )
+                target_compile_options(desktopctl_activity_indicator_z_order_tests
+                    PRIVATE /W4 /permissive- /utf-8
+                )
             endif()
             add_test(NAME desktopctl_keyboard_input COMMAND desktopctl_keyboard_input_tests)
+            add_test(
+                NAME desktopctl_activity_indicator_z_order
+                COMMAND desktopctl_activity_indicator_z_order_tests $<TARGET_FILE:desktopctl>
+            )
+            set_tests_properties(desktopctl_activity_indicator_z_order PROPERTIES TIMEOUT 15)
             add_test(
                 NAME desktopctl_session_lifecycle
                 COMMAND ${CMAKE_COMMAND}
@@ -199,6 +223,9 @@ if(DESKTOPCTL_BUILD_TESTS)
         )
         set_tests_properties(desktopctl_help_guest_caps_lock PROPERTIES
             PASS_REGULAR_EXPRESSION "ASCII letter case is inverted while symbols are correct"
+        )
+        set_tests_properties(desktopctl_help_taskbar_z_order PROPERTIES
+            PASS_REGULAR_EXPRESSION "permanently cover a screen edge"
         )
     endif()
 endif()
