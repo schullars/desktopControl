@@ -121,9 +121,13 @@ OperationResult LinuxSessionClient::request(const std::string& command, std::str
     shutdown(descriptor, SHUT_WR);
 
     pollfd pollDescriptor{descriptor, POLLIN, 0};
-    if (poll(&pollDescriptor, 1, 5000) <= 0) {
+    const int responseTimeout = command.rfind("SCREENSHOT ", 0) == 0 ? 120000 : 5000;
+    if (poll(&pollDescriptor, 1, responseTimeout) <= 0) {
         ::close(descriptor);
-        return {false, "The Linux session did not answer within five seconds."};
+        return {false, responseTimeout == 120000
+                           ? "The Linux session did not answer the screenshot request within "
+                             "two minutes."
+                           : "The Linux session did not answer within five seconds."};
     }
 
     std::string reply;

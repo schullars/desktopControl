@@ -20,6 +20,10 @@ ActivityIndicatorPrivate::~ActivityIndicatorPrivate()
         CloseHandle(activityEvent_);
         activityEvent_ = nullptr;
     }
+    if (keepAliveEvent_ != nullptr) {
+        CloseHandle(keepAliveEvent_);
+        keepAliveEvent_ = nullptr;
+    }
     if (readyEvent_ != nullptr) {
         CloseHandle(readyEvent_);
         readyEvent_ = nullptr;
@@ -46,9 +50,13 @@ bool ActivityIndicatorPrivate::isRunning() const
     return running;
 }
 
-OperationResult ActivityIndicatorPrivate::startBackground()
+OperationResult ActivityIndicatorPrivate::startBackground(bool keepAlive)
 {
     if (isRunning()) {
+        if (keepAlive && !isKeepAliveSession()) {
+            return {false, "A timed session is already running. Stop it before starting "
+                           "keep-alive mode."};
+        }
         const OperationResult activityResult = recordActivity();
         if (!activityResult.success) {
             return activityResult;
@@ -64,6 +72,9 @@ OperationResult ActivityIndicatorPrivate::startBackground()
     }
     executablePath.resize(pathLength);
     std::wstring commandLine = L'"' + executablePath + L"\" session host";
+    if (keepAlive) {
+        commandLine += L" --keep-alive";
+    }
 
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
@@ -116,7 +127,7 @@ OperationResult ActivityIndicatorPrivate::recordActivity()
     return {true, {}};
 }
 
-OperationResult ActivityIndicatorPrivate::run()
+OperationResult ActivityIndicatorPrivate::run(bool keepAlive)
 {
     sessionMutex_ = CreateMutexW(nullptr, TRUE, SessionMutexName);
     if (sessionMutex_ == nullptr) {
@@ -140,6 +151,11 @@ OperationResult ActivityIndicatorPrivate::run()
     if (activityEvent_ == nullptr) {
         return {false, "Unable to create the activity-indicator activity event."};
     }
+    keepAliveEvent_ = CreateEventW(nullptr, TRUE, keepAlive ? TRUE : FALSE,
+                                   KeepAliveEventName);
+    if (keepAliveEvent_ == nullptr) {
+        return {false, "Unable to create the keep-alive session state."};
+    }
     if (!createOverlays()) {
         return {false, "Unable to create one or more activity-indicator overlay windows."};
     }
@@ -162,12 +178,13 @@ OperationResult ActivityIndicatorPrivate::run()
     while (running) {
         const ULONGLONG currentTime = GetTickCount64();
         const ULONGLONG idleDuration = currentTime - lastActivityTime;
-        if (idleDuration >= SessionIdleTimeoutMilliseconds) {
+        if (!keepAlive && idleDuration >= SessionIdleTimeoutMilliseconds) {
             idleTimeout = true;
             break;
         }
-        const DWORD remainingTime = static_cast<DWORD>(SessionIdleTimeoutMilliseconds
-                                                       - idleDuration);
+        const DWORD remainingTime = keepAlive
+            ? INFINITE
+            : static_cast<DWORD>(SessionIdleTimeoutMilliseconds - idleDuration);
         const DWORD waitResult = MsgWaitForMultipleObjects(2, waitHandles, FALSE, remainingTime,
                                                            QS_ALLINPUT);
         if (waitResult == WAIT_OBJECT_0) {
@@ -210,6 +227,17 @@ OperationResult ActivityIndicatorPrivate::run()
         return {true, "Session stopped after three minutes of inactivity."};
     }
     return {true, "Green activity indicator stopped."};
+}
+
+bool ActivityIndicatorPrivate::isKeepAliveSession() const
+{
+    HANDLE event = OpenEventW(SYNCHRONIZE, FALSE, KeepAliveEventName);
+    if (event == nullptr) {
+        return false;
+    }
+    const bool keepAlive = WaitForSingleObject(event, 0) == WAIT_OBJECT_0;
+    CloseHandle(event);
+    return keepAlive;
 }
 
 OperationResult ActivityIndicatorPrivate::requestStop()

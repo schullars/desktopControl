@@ -60,7 +60,7 @@ Install the same architecture's development packages:
 sudo apt-get update
 sudo apt-get install -y build-essential cmake pkg-config \
   libx11-dev libxext-dev libjpeg-dev libpng-dev libglib2.0-dev \
-  libxtst6 libxrandr2
+  libpipewire-0.3-dev libxtst6 libxrandr2
 ```
 
 Build natively:
@@ -110,7 +110,8 @@ the emulated aarch64 session, activity indicator, session IPC, and pointer backe
 to replace a full ARM64 desktop test.
 
 Linux dynamically loads XTest and XRandR runtime entry points so the public backend stays portable
-across x86_64 and aarch64. GIO, X11/Xext, JPEG, and PNG are normal dynamic Ubuntu dependencies.
+across x86_64 and aarch64. GIO, PipeWire, X11/Xext, JPEG, and PNG are normal dynamic Ubuntu
+dependencies.
 Wayland sessions also require XWayland, `xdg-desktop-portal`, and the desktop environment's portal
 backend, such as the GNOME or KDE implementation. Standard Ubuntu Desktop and Kubuntu installations
 normally provide these components.
@@ -121,6 +122,7 @@ Run `desktopctl -H` for the complete reference, platform notes, JSON schemas, an
 
 ```text
 desktopctl session start
+desktopctl session start --keep-alive
 desktopctl session stop
 
 desktopctl mouse move X Y

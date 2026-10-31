@@ -13,9 +13,9 @@ ActivityIndicator::ActivityIndicator()
 
 ActivityIndicator::~ActivityIndicator() = default;
 
-OperationResult ActivityIndicator::startBackground()
+OperationResult ActivityIndicator::startBackground(bool keepAlive)
 {
-    return _d->startBackground();
+    return _d->startBackground(keepAlive);
 }
 
 bool ActivityIndicator::isRunning() const
@@ -28,9 +28,9 @@ OperationResult ActivityIndicator::recordActivity()
     return _d->recordActivity();
 }
 
-OperationResult ActivityIndicator::run()
+OperationResult ActivityIndicator::run(bool keepAlive)
 {
-    return _d->run();
+    return _d->run(keepAlive);
 }
 
 OperationResult ActivityIndicator::requestStop()

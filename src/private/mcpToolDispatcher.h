@@ -25,6 +25,8 @@ private:
                           std::string& value, std::string& error);
     static bool getInteger(const JsonValue& arguments, const std::string& key, bool required,
                            int& value, std::string& error);
+    static bool getBoolean(const JsonValue& arguments, const std::string& key, bool required,
+                           bool& value, std::string& error);
     static bool getStringArray(const JsonValue& arguments, const std::string& key,
                               std::vector<std::string>& value, std::string& error);
     static bool isKnownTool(const std::string& name);

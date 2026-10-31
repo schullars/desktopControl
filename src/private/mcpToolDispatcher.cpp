@@ -23,6 +23,12 @@ JsonValue McpToolDispatcher::toolDefinitions() const
             {"description", JsonValue(description)}
         });
     };
+    const auto booleanProperty = [](const std::string& description) {
+        return JsonValue(JsonValue::Object{
+            {"type", JsonValue("boolean")},
+            {"description", JsonValue(description)}
+        });
+    };
     const auto enumProperty = [](JsonValue::Array values, const std::string& description) {
         return JsonValue(JsonValue::Object{
             {"type", JsonValue("string")},
@@ -56,8 +62,13 @@ JsonValue McpToolDispatcher::toolDefinitions() const
     tools.push_back(tool(
         "session_start",
         "Start the required green activity indicator. Call this before every other desktop tool. "
-        "The session closes automatically after three minutes without a tool call.",
-        schema({}, {}), false));
+        "The default session closes automatically after three minutes without a tool call. Set "
+        "keep_alive only for an explicitly unattended session that must remain active.",
+        schema({
+            {"keep_alive", booleanProperty(
+                "True disables the inactivity timeout until session_stop, logout, reboot, or "
+                "session failure. Defaults to false.")}
+        }, {}), false));
     tools.push_back(tool(
         "session_stop",
         "Stop the desktop control session and immediately remove all green overlays.",
@@ -152,7 +163,12 @@ JsonValue McpToolDispatcher::call(const std::string& name, const JsonValue& argu
         return errorResult("Tool arguments must be a JSON object.");
     }
     if (name == "session_start") {
-        const OperationResult result = activityIndicator_.startBackground();
+        bool keepAlive = false;
+        std::string error;
+        if (!getBoolean(arguments, "keep_alive", false, keepAlive, error)) {
+            return errorResult(error);
+        }
+        const OperationResult result = activityIndicator_.startBackground(keepAlive);
         return toolResult(operationPayload(result), !result.success);
     }
 
@@ -298,6 +314,26 @@ bool McpToolDispatcher::getInteger(const JsonValue& arguments, const std::string
         return false;
     }
     value = static_cast<int>(*integer);
+    return true;
+}
+
+bool McpToolDispatcher::getBoolean(const JsonValue& arguments, const std::string& key,
+                                   bool required, bool& value, std::string& error)
+{
+    const JsonValue* member = arguments.find(key);
+    if (member == nullptr) {
+        value = false;
+        if (!required) {
+            return true;
+        }
+        error = "Missing required boolean argument: " + key;
+        return false;
+    }
+    if (!member->isBoolean()) {
+        error = "Argument must be a boolean: " + key;
+        return false;
+    }
+    value = member->boolean();
     return true;
 }
 

@@ -1,13 +1,10 @@
 #include "private/screenCapturePrivate.h"
 
 #include "platform/linux/private/linuxImageCodec.h"
-#include "platform/linux/private/linuxPortal.h"
 #include "platform/linux/private/linuxSessionIpc.h"
 
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
-
-#include <gio/gio.h>
 
 #include <algorithm>
 #include <chrono>
@@ -546,53 +543,14 @@ ScreenshotResult ScreenCapturePrivate::captureX11Drawable(
 ScreenshotResult ScreenCapturePrivate::captureWaylandDesktop(
     const std::filesystem::path& outputPath)
 {
-    LinuxPortal portal;
-    OperationResult openResult = portal.open();
-    if (!openResult.success) {
-        return failureResult(openResult);
-    }
-    const std::string token = portal.nextToken("screenshot");
-    GVariantBuilder options;
-    g_variant_builder_init(&options, G_VARIANT_TYPE_VARDICT);
-    g_variant_builder_add(&options, "{sv}", "handle_token",
-                          g_variant_new_string(token.c_str()));
-    g_variant_builder_add(&options, "{sv}", "modal", g_variant_new_boolean(FALSE));
-    g_variant_builder_add(&options, "{sv}", "interactive", g_variant_new_boolean(FALSE));
-    GVariant* results = nullptr;
-    OperationResult requestResult = portal.callRequest(
-        "org.freedesktop.portal.Screenshot", "Screenshot",
-        g_variant_new("(s@a{sv})", "", g_variant_builder_end(&options)), token, results,
-        120000);
-    if (!requestResult.success) {
-        return failureResult(requestResult);
-    }
-    const char* uri = nullptr;
-    if (g_variant_lookup(results, "uri", "&s", &uri) == FALSE || uri == nullptr) {
-        g_variant_unref(results);
+    const std::string path = outputPath.u8string();
+    if (path.find('\n') != std::string::npos || path.find('\r') != std::string::npos) {
         return failureResult(
-            {false, "The Wayland screenshot portal did not return an image URI."});
+            {false, "A Wayland screenshot output path cannot contain a line break."});
     }
-    GError* error = nullptr;
-    char* filename = g_filename_from_uri(uri, nullptr, &error);
-    g_variant_unref(results);
-    if (filename == nullptr) {
-        const std::string message = error != nullptr && error->message != nullptr
-            ? error->message
-            : "unknown error";
-        g_clear_error(&error);
-        return failureResult(
-            {false, "Unable to resolve the Wayland screenshot URI: " + message + "."});
-    }
-    const std::filesystem::path portalPath(filename);
-    g_free(filename);
-    LinuxRgbImage image;
-    OperationResult readResult = LinuxImageCodec::readPng(portalPath, image);
-    if (!readResult.success) {
-        return failureResult(readResult);
-    }
-    OperationResult writeResult = LinuxImageCodec::write(outputPath, image);
-    return writeResult.success ? createScreenshotResult(outputPath)
-                               : failureResult(writeResult);
+    OperationResult captureResult = LinuxSessionClient::request("SCREENSHOT " + path);
+    return captureResult.success ? createScreenshotResult(outputPath)
+                                 : failureResult(captureResult);
 }
 
 ScreenshotResult ScreenCapturePrivate::createScreenshotResult(

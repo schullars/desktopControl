@@ -128,7 +128,8 @@ JsonValue McpServerPrivate::handleMethod(const std::string& method, const JsonVa
             {"instructions", JsonValue(
                 "Call session_start before every other desktop tool. Activate the intended window "
                 "before keyboard input. Stop the session when work completes; inactivity also "
-                "closes the green indicator after three minutes.")}
+                "closes the default green indicator after three minutes. Set keep_alive only for "
+                "an explicitly unattended session.")}
         });
     }
     if (method == "notifications/initialized" || method == "notifications/cancelled"

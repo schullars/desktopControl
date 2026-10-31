@@ -22,7 +22,7 @@ int CommandLineApplicationPrivate::run(const std::vector<std::string>& arguments
     }
 
     if (command == "session") {
-        const std::string action = arguments.size() == 3 ? lowerCopy(arguments[2]) : "start";
+        const std::string action = arguments.size() >= 3 ? lowerCopy(arguments[2]) : "start";
         if (action == "start" || action == "host") {
             return runSession(arguments);
         }
@@ -173,6 +173,10 @@ Mandatory session gate:
       Run this before every other non-help command. Repeating start is safe and reports that the
       session is already running. Every accepted non-help command refreshes a three-minute
       inactivity deadline.
+  desktopctl session start --keep-alive
+      Start an explicit unattended session without the three-minute inactivity timeout. It remains
+      active until session stop, logout, reboot, host-process exit, or a required portal failure.
+      A running timed session cannot be upgraded in place; stop it before starting keep-alive mode.
   desktopctl session stop
       Stop the background indicator, close all overlay windows, and clear the session state.
 
@@ -181,6 +185,8 @@ Mandatory session gate:
   If the background host exits or crashes, the operating system releases the state. The host
   also exits automatically after three minutes without a non-help command. Help does not start or
   refresh a session. After an inactivity timeout, run session start again before another command.
+  Use --keep-alive only when unattended operation is intentional, and always call session stop when
+  the work is complete.
 
   Recommended PowerShell lifecycle:
       $tool = ".\desktopctl.exe"
@@ -337,7 +343,15 @@ Screenshot JSON result:
   Connecting, disconnecting, or rearranging displays rebuilds the borders automatically.
   Border windows periodically reassert their topmost Z-order so a taskbar or panel cannot
   permanently cover a screen edge. This maintenance does not activate the overlay or intercept
-  mouse input.
+  mouse input. Linux prefers a verified 32-bit ARGB visual for true per-pixel transparency. A
+  Wayland/XWayland server that rejects that visual automatically receives a three-pixel fallback
+  border so panel text and icons remain readable.
+
+  On Wayland, the green indicator is created only after the system portal authorization succeeds.
+  If the authorization dialog is not confirmed within 60 seconds, DesktopCTL closes the pending
+  request, clears the partial session state, and returns authorization_timeout. Cancelling or
+  denying the dialog returns authorization_denied. No green overlay remains after either failure;
+  run session start again to retry. A keep-alive session still requires this initial confirmation.
 
 Application discovery and launch:
   desktopctl app list
@@ -427,10 +441,13 @@ Ubuntu display platform compatibility:
   window discovery, and verified activation. Application discovery uses the freedesktop desktop
   application catalog through GIO.
 
-  Wayland uses XDG Desktop Portal RemoteDesktop for pointer and keyboard input and the Screenshot
-  portal for full-screen capture. This common path supports portal implementations used by GNOME
-  Shell and KDE Plasma. session start may show a compositor authorization dialog. The portal
-  reports logical stream coordinates, which must be used for absolute pointer movement.
+  Wayland uses one XDG Desktop Portal RemoteDesktop and ScreenCast session for pointer input,
+  keyboard input, and full-screen capture. This common path supports portal implementations used
+  by GNOME Shell and KDE Plasma. session start may show one compositor authorization dialog;
+  later screenshots reuse its authorized PipeWire streams and do not request a new screenshot
+  authorization. The portal reports logical stream coordinates. DesktopCTL scales captured monitor
+  frames to those logical dimensions so screenshots and absolute pointer movement use the same
+  coordinate scale.
   type-physical is unavailable because the standard portal accepts keysyms but does not expose
   target-layout scan-code discovery; use type, type-unicode, or an Xorg login session.
 
@@ -454,6 +471,7 @@ Exit codes:
 
 Examples:
   desktopctl session start
+  desktopctl session start --keep-alive
   desktopctl mouse move 800 450
   desktopctl mouse click left 2
   desktopctl mouse wheel -120 vertical
@@ -730,24 +748,33 @@ int CommandLineApplicationPrivate::runScreenshot(const std::vector<std::string>&
 
 int CommandLineApplicationPrivate::runSession(const std::vector<std::string>& arguments)
 {
-    if (arguments.size() > 3) {
-        std::cerr << "Session accepts only start or stop.\n";
+    if (arguments.size() > 4) {
+        std::cerr << "Session accepts start or stop and the optional --keep-alive flag.\n";
         return 2;
     }
 
-    const std::string action = arguments.size() == 3 ? lowerCopy(arguments[2]) : "start";
+    const std::string action = arguments.size() >= 3 ? lowerCopy(arguments[2]) : "start";
+    const bool keepAlive = arguments.size() == 4 && arguments[3] == "--keep-alive";
+    if (arguments.size() == 4 && !keepAlive) {
+        std::cerr << "The only supported session option is --keep-alive.\n";
+        return 2;
+    }
     if (action == "stop") {
+        if (keepAlive) {
+            std::cerr << "Session stop does not accept --keep-alive.\n";
+            return 2;
+        }
         return reportResult(activityIndicator_.requestStop());
     }
     if (action == "host") {
-        return reportResult(activityIndicator_.run());
+        return reportResult(activityIndicator_.run(keepAlive));
     }
     if (action != "start") {
         std::cerr << "Session action must be start or stop.\n";
         return 2;
     }
 
-    return reportResult(activityIndicator_.startBackground());
+    return reportResult(activityIndicator_.startBackground(keepAlive));
 }
 
 int CommandLineApplicationPrivate::runApplication(

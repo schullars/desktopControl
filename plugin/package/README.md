@@ -41,8 +41,13 @@ the returned path and image count, and stop the session.
 The green border and pointer halo must appear after `session_start`. The indicator closes after
 three minutes without a tool call or immediately after `session_stop`.
 
-On Ubuntu Wayland, session start can show a desktop-portal approval dialog. Full screenshots and
-portal-approved input are available. Global window listing, forced window activation, coordinate
+For explicitly unattended work, call `session_start` with `keep_alive: true`. This disables only
+the inactivity timeout; `session_stop`, logout, reboot, host failure, or a required portal failure
+still ends the session.
+
+On Ubuntu Wayland, session start can show one desktop-portal approval dialog. It times out after 60
+seconds if it is not confirmed. Full screenshots reuse the authorized ScreenCast session without a
+new approval for every image. Global window listing, forced window activation, coordinate
 region capture, programmatic target-window capture, and physical scan-code text are not standard
 Wayland capabilities. Use Xorg when those operations are required. The green indicator requires
 XWayland.

@@ -127,6 +127,7 @@ OperationResult LinuxPortal::callRequest(const char* interfaceName, const char* 
     }
     g_dbus_connection_signal_unsubscribe(connection_, subscription);
     if (!state.received) {
+        closeRequest(expectedPath);
         return {false, "The desktop portal request timed out."};
     }
     if (state.response != 0U) {
@@ -138,6 +139,22 @@ OperationResult LinuxPortal::callRequest(const char* interfaceName, const char* 
     }
     results = state.results;
     return {true, {}};
+}
+
+void LinuxPortal::closeRequest(const std::string& requestPath)
+{
+    if (connection_ == nullptr || requestPath.empty()) {
+        return;
+    }
+    GError* error = nullptr;
+    GVariant* reply = g_dbus_connection_call_sync(
+        connection_, "org.freedesktop.portal.Desktop", requestPath.c_str(),
+        "org.freedesktop.portal.Request", "Close", nullptr, nullptr,
+        G_DBUS_CALL_FLAGS_NONE, 5000, nullptr, &error);
+    if (reply != nullptr) {
+        g_variant_unref(reply);
+    }
+    g_clear_error(&error);
 }
 
 OperationResult LinuxPortal::callMethod(const char* interfaceName, const char* methodName,

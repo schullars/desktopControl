@@ -26,8 +26,9 @@ file(WRITE "${requestFile}"
     "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\",\"params\":{}}\n"
     "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}\n"
     "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"window_list\",\"arguments\":{}}}\n"
-    "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"session_start\",\"arguments\":{}}}\n"
-    "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/call\",\"params\":{\"name\":\"session_stop\",\"arguments\":{}}}\n"
+    "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"session_start\",\"arguments\":{\"keep_alive\":\"yes\"}}}\n"
+    "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/call\",\"params\":{\"name\":\"session_start\",\"arguments\":{\"keep_alive\":false}}}\n"
+    "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/call\",\"params\":{\"name\":\"session_stop\",\"arguments\":{}}}\n"
     "{\"jsonrpc\":\"2.0\",\"method\":\"exit\"}\n"
 )
 
@@ -59,4 +60,10 @@ if(NOT serverOutput MATCHES "Session is not started")
 endif()
 if(NOT serverOutput MATCHES "session_start")
     message(FATAL_ERROR "MCP session start result is missing: ${serverOutput}")
+endif()
+if(NOT serverOutput MATCHES "keep_alive")
+    message(FATAL_ERROR "MCP keep-alive session option is missing: ${serverOutput}")
+endif()
+if(NOT serverOutput MATCHES "Argument must be a boolean: keep_alive")
+    message(FATAL_ERROR "MCP keep-alive validation result is missing: ${serverOutput}")
 endif()

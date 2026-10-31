@@ -22,10 +22,10 @@ public:
     ActivityIndicatorPrivate();
     ~ActivityIndicatorPrivate();
 
-    OperationResult startBackground();
+    OperationResult startBackground(bool keepAlive);
     bool isRunning() const;
     OperationResult recordActivity();
-    OperationResult run();
+    OperationResult run(bool keepAlive);
     OperationResult requestStop();
 
 private:
@@ -57,6 +57,8 @@ private:
         L"Local\\desktopctl-green-activity-ready";
     inline static constexpr wchar_t ActivityEventName[] =
         L"Local\\desktopctl-green-activity-command";
+    inline static constexpr wchar_t KeepAliveEventName[] =
+        L"Local\\desktopctl-green-activity-keep-alive";
 
     static std::atomic<DWORD> sessionThreadId_;
     static LRESULT CALLBACK windowProcedure(HWND window, UINT message, WPARAM wParam,
@@ -80,6 +82,7 @@ private:
     void maintainOverlayZOrder();
     bool updateLayeredPixels(HWND window, int x, int y, int width, int height,
                              const std::vector<std::uint32_t>& pixels);
+    bool isKeepAliveSession() const;
 
     std::vector<BorderWindow> borders_;
     HWND cursorWindow_ = nullptr;
@@ -88,16 +91,19 @@ private:
     HANDLE stopEvent_ = nullptr;
     HANDLE readyEvent_ = nullptr;
     HANDLE activityEvent_ = nullptr;
+    HANDLE keepAliveEvent_ = nullptr;
 #elif defined(__linux__)
     static constexpr int SessionIdleTimeoutSeconds = 3 * 60;
 
     static void handleSignal(int signalNumber);
     OperationResult handleLinuxRequest(const std::string& request, bool& stopRequested);
+    OperationResult currentLinuxSessionMode() const;
 
     inline static volatile std::sig_atomic_t stopSignal_ = 0;
     std::unique_ptr<class LinuxSessionServer> linuxServer_;
     std::unique_ptr<class LinuxActivityOverlay> linuxOverlay_;
     std::unique_ptr<class LinuxPortalRemoteDesktop> linuxPortal_;
+    bool keepAlive_ = false;
 #endif
 };
 

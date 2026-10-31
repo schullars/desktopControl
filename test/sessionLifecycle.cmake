@@ -33,6 +33,17 @@ if(NOT startResult EQUAL 0)
 endif()
 
 execute_process(
+    COMMAND "${DESKTOPCTL_EXE}" session start --keep-alive
+    RESULT_VARIABLE timedUpgradeResult
+    OUTPUT_VARIABLE timedUpgradeOutput
+    ERROR_VARIABLE timedUpgradeError
+)
+if(timedUpgradeResult EQUAL 0 OR NOT timedUpgradeError MATCHES "timed session is already running")
+    execute_process(COMMAND "${DESKTOPCTL_EXE}" session stop OUTPUT_QUIET ERROR_QUIET)
+    message(FATAL_ERROR "Timed session was incorrectly upgraded in place: ${timedUpgradeError}")
+endif()
+
+execute_process(
     COMMAND "${DESKTOPCTL_EXE}" session start
     RESULT_VARIABLE repeatedStartResult
     OUTPUT_VARIABLE repeatedStartOutput
@@ -83,4 +94,35 @@ execute_process(
 )
 if(finalGateResult EQUAL 0)
     message(FATAL_ERROR "Session state remained active after stop")
+endif()
+
+execute_process(
+    COMMAND "${DESKTOPCTL_EXE}" session start --keep-alive
+    RESULT_VARIABLE keepAliveStartResult
+    OUTPUT_VARIABLE keepAliveStartOutput
+    ERROR_VARIABLE keepAliveStartError
+)
+if(NOT keepAliveStartResult EQUAL 0)
+    message(FATAL_ERROR "Keep-alive session start failed: ${keepAliveStartError}")
+endif()
+
+execute_process(
+    COMMAND "${DESKTOPCTL_EXE}" session start --keep-alive
+    RESULT_VARIABLE repeatedKeepAliveResult
+    OUTPUT_VARIABLE repeatedKeepAliveOutput
+    ERROR_VARIABLE repeatedKeepAliveError
+)
+if(NOT repeatedKeepAliveResult EQUAL 0)
+    execute_process(COMMAND "${DESKTOPCTL_EXE}" session stop OUTPUT_QUIET ERROR_QUIET)
+    message(FATAL_ERROR "Repeated keep-alive start failed: ${repeatedKeepAliveError}")
+endif()
+
+execute_process(
+    COMMAND "${DESKTOPCTL_EXE}" session stop
+    RESULT_VARIABLE keepAliveStopResult
+    OUTPUT_VARIABLE keepAliveStopOutput
+    ERROR_VARIABLE keepAliveStopError
+)
+if(NOT keepAliveStopResult EQUAL 0)
+    message(FATAL_ERROR "Keep-alive session stop failed: ${keepAliveStopError}")
 endif()

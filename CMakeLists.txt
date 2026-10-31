@@ -71,6 +71,7 @@ elseif(UNIX AND NOT APPLE)
     find_package(Threads REQUIRED)
     find_package(X11 REQUIRED)
     pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0 gio-unix-2.0)
+    pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
     if(NOT X11_Xext_FOUND)
         message(FATAL_ERROR "The X11 Xext development library is required")
     endif()
@@ -87,6 +88,10 @@ elseif(UNIX AND NOT APPLE)
         src/platform/linux/private/linuxPortal.h
         src/platform/linux/private/linuxPortalRemoteDesktop.cpp
         src/platform/linux/private/linuxPortalRemoteDesktop.h
+        src/platform/linux/private/linuxPortalVariant.cpp
+        src/platform/linux/private/linuxPortalVariant.h
+        src/platform/linux/private/linuxPipeWireCapture.cpp
+        src/platform/linux/private/linuxPipeWireCapture.h
         src/platform/linux/private/linuxSessionIpc.cpp
         src/platform/linux/private/linuxSessionIpc.h
     )
@@ -95,6 +100,7 @@ elseif(UNIX AND NOT APPLE)
         JPEG::JPEG
         PNG::PNG
         PkgConfig::GIO
+        PkgConfig::PIPEWIRE
         Threads::Threads
         X11::X11
         X11::Xext
@@ -137,6 +143,9 @@ if(DESKTOPCTL_BUILD_TESTS)
         add_test(NAME desktopctl_help_taskbar_z_order COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_ubuntu_platforms COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_wayland_limits COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_wayland_session_capture COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_keep_alive COMMAND desktopctl -H)
+        add_test(NAME desktopctl_help_wayland_overlay_fallback COMMAND desktopctl -H)
         add_test(
             NAME desktopctl_mcp_lifecycle
             COMMAND ${CMAKE_COMMAND}
@@ -219,6 +228,23 @@ if(DESKTOPCTL_BUILD_TESTS)
             )
             add_test(NAME desktopctl_linux_image_codec
                      COMMAND desktopctl_linux_image_codec_tests)
+            add_executable(desktopctl_linux_portal_variant_tests
+                test/linuxPortalVariantTests.cpp
+                src/platform/linux/private/linuxPortalVariant.cpp
+                src/platform/linux/private/linuxPortalVariant.h
+            )
+            target_include_directories(desktopctl_linux_portal_variant_tests
+                PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+            )
+            target_compile_features(desktopctl_linux_portal_variant_tests PRIVATE cxx_std_17)
+            target_compile_options(desktopctl_linux_portal_variant_tests
+                PRIVATE -Wall -Wextra -Wpedantic
+            )
+            target_link_libraries(desktopctl_linux_portal_variant_tests
+                PRIVATE PkgConfig::GIO
+            )
+            add_test(NAME desktopctl_linux_portal_variant
+                     COMMAND desktopctl_linux_portal_variant_tests)
         endif()
         set_tests_properties(desktopctl_help PROPERTIES
             PASS_REGULAR_EXPRESSION "Browser workflow"
@@ -282,6 +308,15 @@ if(DESKTOPCTL_BUILD_TESTS)
         )
         set_tests_properties(desktopctl_help_wayland_limits PROPERTIES
             PASS_REGULAR_EXPRESSION "global window list, arbitrary"
+        )
+        set_tests_properties(desktopctl_help_wayland_session_capture PROPERTIES
+            PASS_REGULAR_EXPRESSION "screenshots and absolute pointer movement use the same"
+        )
+        set_tests_properties(desktopctl_help_keep_alive PROPERTIES
+            PASS_REGULAR_EXPRESSION "session start --keep-alive"
+        )
+        set_tests_properties(desktopctl_help_wayland_overlay_fallback PROPERTIES
+            PASS_REGULAR_EXPRESSION "three-pixel fallback"
         )
     endif()
 endif()

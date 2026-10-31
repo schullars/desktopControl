@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cerrno>
 #include <cstring>
+#include <filesystem>
 #include <sstream>
 #include <thread>
 
@@ -22,9 +23,19 @@ ActivityIndicatorPrivate::ActivityIndicatorPrivate() = default;
 
 ActivityIndicatorPrivate::~ActivityIndicatorPrivate() = default;
 
-OperationResult ActivityIndicatorPrivate::startBackground()
+OperationResult ActivityIndicatorPrivate::startBackground(bool keepAlive)
 {
     if (isRunning()) {
+        if (keepAlive) {
+            const OperationResult modeResult = currentLinuxSessionMode();
+            if (!modeResult.success) {
+                return modeResult;
+            }
+            if (modeResult.message != "KEEP_ALIVE") {
+                return {false, "A timed session is already running. Stop it before starting "
+                               "keep-alive mode."};
+            }
+        }
         OperationResult activityResult = recordActivity();
         if (!activityResult.success) {
             return activityResult;
@@ -60,14 +71,18 @@ OperationResult ActivityIndicatorPrivate::startBackground()
                 close(nullDescriptor);
             }
         }
-        execl(executablePath, executablePath, "session", "host", nullptr);
+        if (keepAlive) {
+            execl(executablePath, executablePath, "session", "host", "--keep-alive", nullptr);
+        } else {
+            execl(executablePath, executablePath, "session", "host", nullptr);
+        }
         LinuxSessionClient::writeStartupError(
             "Unable to execute the detached Linux session process: "
             + std::string(std::strerror(errno)) + ".");
         _exit(3);
     }
 
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(125);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(75);
     while (std::chrono::steady_clock::now() < deadline) {
         if (isRunning()) {
             return {true, LinuxSessionClient::isWaylandSession()
@@ -85,7 +100,7 @@ OperationResult ActivityIndicatorPrivate::startBackground()
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-    return {false, "The Linux background session did not become ready within 125 seconds."};
+    return {false, "The Linux background session did not become ready within 75 seconds."};
 }
 
 bool ActivityIndicatorPrivate::isRunning() const
@@ -102,8 +117,9 @@ OperationResult ActivityIndicatorPrivate::recordActivity()
     return result;
 }
 
-OperationResult ActivityIndicatorPrivate::run()
+OperationResult ActivityIndicatorPrivate::run(bool keepAlive)
 {
+    keepAlive_ = keepAlive;
     stopSignal_ = 0;
     struct sigaction signalAction{};
     signalAction.sa_handler = &ActivityIndicatorPrivate::handleSignal;
@@ -111,23 +127,24 @@ OperationResult ActivityIndicatorPrivate::run()
     sigaction(SIGINT, &signalAction, nullptr);
     sigaction(SIGTERM, &signalAction, nullptr);
 
-    linuxOverlay_ = std::make_unique<LinuxActivityOverlay>();
-    OperationResult result = linuxOverlay_->start();
-    if (!result.success) {
-        LinuxSessionClient::writeStartupError(result.message);
-        linuxOverlay_.reset();
-        return result;
-    }
-
+    OperationResult result{true, {}};
     if (LinuxSessionClient::isWaylandSession()) {
         linuxPortal_ = std::make_unique<LinuxPortalRemoteDesktop>();
         result = linuxPortal_->start();
         if (!result.success) {
             LinuxSessionClient::writeStartupError(result.message);
             linuxPortal_.reset();
-            linuxOverlay_.reset();
             return result;
         }
+    }
+
+    linuxOverlay_ = std::make_unique<LinuxActivityOverlay>();
+    result = linuxOverlay_->start();
+    if (!result.success) {
+        LinuxSessionClient::writeStartupError(result.message);
+        linuxPortal_.reset();
+        linuxOverlay_.reset();
+        return result;
     }
 
     linuxServer_ = std::make_unique<LinuxSessionServer>();
@@ -162,7 +179,8 @@ OperationResult ActivityIndicatorPrivate::run()
             if (acceptResult.success) {
                 OperationResult requestResult = handleLinuxRequest(request, stopRequested);
                 if (request == "ACTIVITY" || request.rfind("POINTER_", 0) == 0
-                    || request.rfind("KEYSYM ", 0) == 0) {
+                    || request.rfind("KEYSYM ", 0) == 0
+                    || request.rfind("SCREENSHOT ", 0) == 0) {
                     lastActivity = std::chrono::steady_clock::now();
                 }
                 linuxServer_->respond(clientDescriptor, requestResult);
@@ -177,7 +195,11 @@ OperationResult ActivityIndicatorPrivate::run()
         }
         while (g_main_context_iteration(nullptr, FALSE) != FALSE) {
         }
-        if (std::chrono::steady_clock::now() - lastActivity
+        if (linuxPortal_ != nullptr && !linuxPortal_->isHealthy()) {
+            result = {false, linuxPortal_->failureMessage()};
+            break;
+        }
+        if (!keepAlive_ && std::chrono::steady_clock::now() - lastActivity
             >= std::chrono::seconds(SessionIdleTimeoutSeconds)) {
             idleTimeout = true;
             break;
@@ -225,6 +247,9 @@ OperationResult ActivityIndicatorPrivate::handleLinuxRequest(const std::string& 
     if (request == "ACTIVITY") {
         return {true, {}};
     }
+    if (request == "MODE") {
+        return {true, keepAlive_ ? "KEEP_ALIVE" : "TIMED"};
+    }
     if (request == "STOP") {
         stopRequested = true;
         return {true, "Stopping."};
@@ -266,8 +291,20 @@ OperationResult ActivityIndicatorPrivate::handleLinuxRequest(const std::string& 
         if (stream >> keysym >> pressed && (pressed == 0 || pressed == 1)) {
             return linuxPortal_->setKeyboardKeysym(keysym, pressed != 0);
         }
+    } else if (action == "SCREENSHOT") {
+        stream >> std::ws;
+        std::string path;
+        std::getline(stream, path);
+        if (!path.empty()) {
+            return linuxPortal_->captureDesktop(std::filesystem::u8path(path));
+        }
     }
     return {false, "The Linux session command is invalid."};
+}
+
+OperationResult ActivityIndicatorPrivate::currentLinuxSessionMode() const
+{
+    return LinuxSessionClient::request("MODE");
 }
 
 } // namespace desktopctl

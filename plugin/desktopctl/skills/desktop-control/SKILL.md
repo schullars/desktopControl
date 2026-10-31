@@ -13,10 +13,20 @@ Call `session_start` before every other desktop tool. This makes the green per-m
 pointer halo visible. If a tool says the session is not started, call `session_start` again; the
 indicator closes automatically after three minutes without a tool call. The border periodically
 reasserts its topmost Z-order so a taskbar or panel cannot permanently cover a screen edge without
-activating the overlay or blocking mouse input.
+activating the overlay or blocking mouse input. Linux prefers verified ARGB transparency and uses a
+three-pixel Wayland fallback border when the X server rejects that visual.
+
+Set `keep_alive: true` on `session_start` only for explicitly unattended work that must remain
+active beyond three minutes. A keep-alive session ends on `session_stop`, logout, reboot, host
+failure, or a required portal failure. Stop a running timed session before switching modes.
 
 Call `session_stop` after the requested desktop workflow completes or fails. Do not leave held mouse
 buttons or keys active. Pair every `down` action with a matching `up` action.
+
+On Wayland, the initial session start requires one portal confirmation and the green indicator
+appears only after authorization succeeds. A pending confirmation times out after 60 seconds and
+is closed without leaving an active session. Full screenshots reuse the authorized ScreenCast
+streams, so do not expect a separate authorization prompt for every capture.
 
 ## Targeting and verification
 

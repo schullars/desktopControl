@@ -22,8 +22,10 @@ public:
     /// <summary>
     /// Starts the indicator in a detached background process and waits until it is ready.
     /// </summary>
+    /// <param name="keepAlive">True disables the inactivity timeout until an explicit stop,
+    /// logout, process exit, or operating-system shutdown.</param>
     /// <returns>Success when the indicator is running or was already running.</returns>
-    OperationResult startBackground();
+    OperationResult startBackground(bool keepAlive = false);
 
     /// <summary>
     /// Reports whether a fully initialized indicator owns the current login-session state.
@@ -40,8 +42,9 @@ public:
     /// <summary>
     /// Runs the green screen border and pointer halo until a stop request or Ctrl+C.
     /// </summary>
+    /// <param name="keepAlive">True disables the three-minute inactivity timeout.</param>
     /// <returns>The shutdown result. This call blocks while the indicator is running.</returns>
-    OperationResult run();
+    OperationResult run(bool keepAlive = false);
 
     /// <summary>
     /// Requests that the indicator running in the current login session stop.

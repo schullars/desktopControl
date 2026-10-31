@@ -40,6 +40,7 @@ private:
                                const gchar* signalName, GVariant* parameters,
                                gpointer userData);
     static std::string errorMessage(const std::string& operation, GError* error);
+    void closeRequest(const std::string& requestPath);
 
     GDBusConnection* connection_ = nullptr;
     std::uint64_t tokenCounter_ = 0;

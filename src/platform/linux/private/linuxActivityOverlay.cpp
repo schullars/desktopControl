@@ -1,6 +1,7 @@
 #include "platform/linux/private/linuxActivityOverlay.h"
 
 #include <X11/Xatom.h>
+#include <X11/Xutil.h>
 #include <X11/extensions/shape.h>
 
 #include <dlfcn.h>
@@ -9,6 +10,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <cstdlib>
 
 namespace desktopctl {
 
@@ -38,6 +40,7 @@ OperationResult LinuxActivityOverlay::start()
     root_ = DefaultRootWindow(display_);
     colormap_ = DefaultColormap(display_, DefaultScreen(display_));
     opacityAtom_ = XInternAtom(display_, "_NET_WM_WINDOW_OPACITY", False);
+    discoverOverlayVisual();
 
     XColor color{};
     color.red = 40U * 257U;
@@ -92,6 +95,10 @@ void LinuxActivityOverlay::stop()
 {
     if (display_ != nullptr) {
         destroyWindows();
+        if (overlayColormap_ != None) {
+            XFreeColormap(display_, overlayColormap_);
+            overlayColormap_ = None;
+        }
         XFlush(display_);
         XCloseDisplay(display_);
         display_ = nullptr;
@@ -100,13 +107,106 @@ void LinuxActivityOverlay::stop()
         dlclose(randrLibrary_);
         randrLibrary_ = nullptr;
     }
+    if (xrenderLibrary_ != nullptr) {
+        dlclose(xrenderLibrary_);
+        xrenderLibrary_ = nullptr;
+    }
     xrrGetMonitors_ = nullptr;
     xrrFreeMonitors_ = nullptr;
     root_ = None;
     colormap_ = None;
     greenPixel_ = 0;
     opacityAtom_ = None;
+    overlayVisual_ = nullptr;
+    overlayDepth_ = 0;
+    overlayFormat_ = {};
+    supportsArgb_ = false;
     monitors_.clear();
+}
+
+void LinuxActivityOverlay::discoverOverlayVisual()
+{
+    supportsArgb_ = false;
+    overlayVisual_ = DefaultVisual(display_, DefaultScreen(display_));
+    overlayDepth_ = DefaultDepth(display_, DefaultScreen(display_));
+    xrenderLibrary_ = dlopen("libXrender.so.1", RTLD_LAZY | RTLD_LOCAL);
+    if (xrenderLibrary_ == nullptr) {
+        return;
+    }
+    auto findVisualFormat = reinterpret_cast<XRenderFindVisualFormat>(
+        dlsym(xrenderLibrary_, "XRenderFindVisualFormat"));
+    if (findVisualFormat == nullptr) {
+        dlclose(xrenderLibrary_);
+        xrenderLibrary_ = nullptr;
+        return;
+    }
+
+    XVisualInfo pattern{};
+    pattern.screen = DefaultScreen(display_);
+    pattern.depth = 32;
+    pattern.c_class = TrueColor;
+    int count = 0;
+    XVisualInfo* visuals = XGetVisualInfo(display_, VisualScreenMask | VisualDepthMask
+                                         | VisualClassMask, &pattern, &count);
+    for (int index = 0; visuals != nullptr && index < count; ++index) {
+        XRenderPictFormatData* format = findVisualFormat(display_, visuals[index].visual);
+        if (format != nullptr && format->type == 1
+            && format->direct.alphaMask != 0) {
+            overlayVisual_ = visuals[index].visual;
+            overlayDepth_ = visuals[index].depth;
+            overlayFormat_ = format->direct;
+            supportsArgb_ = true;
+            break;
+        }
+    }
+    if (visuals != nullptr) {
+        XFree(visuals);
+    }
+    if (supportsArgb_) {
+        overlayColormap_ = XCreateColormap(display_, root_, overlayVisual_, AllocNone);
+        if (overlayColormap_ == None || !validateArgbVisual()) {
+            if (overlayColormap_ != None) {
+                overlayXErrorOccurred_ = false;
+                const XErrorHandler previousHandler = XSetErrorHandler(
+                    &LinuxActivityOverlay::handleOverlayXError);
+                XFreeColormap(display_, overlayColormap_);
+                XSync(display_, False);
+                XSetErrorHandler(previousHandler);
+                overlayColormap_ = None;
+            }
+            supportsArgb_ = false;
+            overlayVisual_ = DefaultVisual(display_, DefaultScreen(display_));
+            overlayDepth_ = DefaultDepth(display_, DefaultScreen(display_));
+            overlayFormat_ = {};
+        }
+    }
+}
+
+bool LinuxActivityOverlay::validateArgbVisual()
+{
+    XSetWindowAttributes attributes{};
+    attributes.override_redirect = True;
+    attributes.background_pixel = 0;
+    attributes.colormap = overlayColormap_;
+    overlayXErrorOccurred_ = false;
+    const XErrorHandler previousHandler = XSetErrorHandler(
+        &LinuxActivityOverlay::handleOverlayXError);
+    const Window probe = XCreateWindow(
+        display_, root_, 0, 0, 1U, 1U, 0, overlayDepth_, InputOutput, overlayVisual_,
+        CWOverrideRedirect | CWBackPixel | CWColormap, &attributes);
+    XSync(display_, False);
+    if (!overlayXErrorOccurred_ && probe != None) {
+        XDestroyWindow(display_, probe);
+        XSync(display_, False);
+    }
+    XSetErrorHandler(previousHandler);
+    return !overlayXErrorOccurred_ && probe != None;
+}
+
+int LinuxActivityOverlay::handleOverlayXError(Display*, XErrorEvent*)
+{
+    overlayXErrorOccurred_ = true;
+    return 0;
 }
 
 int LinuxActivityOverlay::descriptor() const
@@ -193,14 +293,19 @@ OperationResult LinuxActivityOverlay::rebuildBorders(
         XDestroyWindow(display_, window);
     }
     borders_.clear();
+    const char* sessionType = std::getenv("XDG_SESSION_TYPE");
+    const bool waylandSession = sessionType != nullptr
+        && std::string(sessionType) == "wayland";
     for (const MonitorBounds& monitor : monitors) {
-        const int thickness = std::max(1, std::min({BorderThickness, monitor.width / 2,
+        const int requestedThickness = waylandSession && !supportsArgb_
+            ? WaylandFallbackBorderThickness
+            : BorderThickness;
+        const int thickness = std::max(1, std::min({requestedThickness, monitor.width / 2,
                                                     monitor.height / 2}));
         for (int depth = 0; depth < thickness; ++depth) {
-            const std::uint64_t alpha = static_cast<std::uint64_t>(145 * (thickness - depth))
-                / static_cast<std::uint64_t>(thickness);
-            const unsigned long opacity = static_cast<unsigned long>(
-                alpha * 0xffffffffULL / 255ULL);
+            const std::uint8_t alpha = static_cast<std::uint8_t>(
+                static_cast<std::uint64_t>(145 * (thickness - depth))
+                / static_cast<std::uint64_t>(thickness));
             const std::array<MonitorBounds, 4> strips{{
                 {monitor.x, monitor.y + depth, monitor.width, 1},
                 {monitor.x, monitor.y + monitor.height - depth - 1, monitor.width, 1},
@@ -209,7 +314,7 @@ OperationResult LinuxActivityOverlay::rebuildBorders(
             }};
             for (const MonitorBounds& strip : strips) {
                 Window window = createOverlayWindow(strip.x, strip.y, strip.width,
-                                                    strip.height, opacity);
+                                                    strip.height, alpha);
                 if (window == None) {
                     return {false, "Unable to create an X11 activity-indicator border window."};
                 }
@@ -222,20 +327,25 @@ OperationResult LinuxActivityOverlay::rebuildBorders(
 }
 
 Window LinuxActivityOverlay::createOverlayWindow(int x, int y, int width, int height,
-                                                  unsigned long opacity)
+                                                  std::uint8_t alpha)
 {
     XSetWindowAttributes attributes{};
     attributes.override_redirect = True;
-    attributes.background_pixel = greenPixel_;
+    attributes.background_pixel = supportsArgb_ ? argbPixel(alpha) : greenPixel_;
+    attributes.colormap = supportsArgb_ ? overlayColormap_ : colormap_;
     attributes.event_mask = StructureNotifyMask;
     Window window = XCreateWindow(display_, root_, x, y,
                                   static_cast<unsigned int>(width),
-                                  static_cast<unsigned int>(height), 0, CopyFromParent,
-                                  InputOutput, CopyFromParent,
-                                  CWOverrideRedirect | CWBackPixel | CWEventMask, &attributes);
+                                  static_cast<unsigned int>(height), 0, overlayDepth_,
+                                  InputOutput, overlayVisual_, CWOverrideRedirect | CWBackPixel
+                                  | CWColormap | CWEventMask, &attributes);
     if (window == None) {
         return None;
     }
+    const unsigned long opacity = supportsArgb_
+        ? 0xffffffffUL
+        : static_cast<unsigned long>(static_cast<std::uint64_t>(alpha)
+                                     * 0xffffffffULL / 255ULL);
     XChangeProperty(display_, window, opacityAtom_, XA_CARDINAL, 32, PropModeReplace,
                     reinterpret_cast<const unsigned char*>(&opacity), 1);
     makeInputTransparent(window);
@@ -243,10 +353,22 @@ Window LinuxActivityOverlay::createOverlayWindow(int x, int y, int width, int he
     return window;
 }
 
+unsigned long LinuxActivityOverlay::argbPixel(std::uint8_t alpha) const
+{
+    const auto channel = [](std::uint8_t value, short mask, short shift) {
+        const unsigned long scaled = static_cast<unsigned long>(value)
+            * static_cast<unsigned long>(mask) / 255UL;
+        return scaled << static_cast<unsigned int>(shift);
+    };
+    return channel(40U, overlayFormat_.redMask, overlayFormat_.red)
+        | channel(245U, overlayFormat_.greenMask, overlayFormat_.green)
+        | channel(112U, overlayFormat_.blueMask, overlayFormat_.blue)
+        | channel(alpha, overlayFormat_.alphaMask, overlayFormat_.alpha);
+}
+
 OperationResult LinuxActivityOverlay::createCursorOverlay()
 {
-    const unsigned long opacity = static_cast<unsigned long>(235ULL * 0xffffffffULL / 255ULL);
-    cursorWindow_ = createOverlayWindow(0, 0, CursorOverlaySize, CursorOverlaySize, opacity);
+    cursorWindow_ = createOverlayWindow(0, 0, CursorOverlaySize, CursorOverlaySize, 235U);
     if (cursorWindow_ == None) {
         return {false, "Unable to create the X11 pointer halo window."};
     }

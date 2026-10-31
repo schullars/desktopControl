@@ -1,4 +1,8 @@
 #include "platform/linux/private/linuxPortalRemoteDesktop.h"
+#include "platform/linux/private/linuxPortalVariant.h"
+#include "platform/linux/private/linuxPipeWireCapture.h"
+
+#include <gio/gunixfdlist.h>
 
 #include <algorithm>
 
@@ -20,6 +24,10 @@ OperationResult LinuxPortalRemoteDesktop::start()
     if (!result.success) {
         return result;
     }
+    portalNameWatch_ = g_bus_watch_name_on_connection(
+        portal_.connection(), "org.freedesktop.portal.Desktop",
+        G_BUS_NAME_WATCHER_FLAGS_NONE, &LinuxPortalRemoteDesktop::handlePortalAppeared,
+        &LinuxPortalRemoteDesktop::handlePortalVanished, this, nullptr);
     result = createSession();
     if (!result.success) {
         stop();
@@ -49,6 +57,15 @@ OperationResult LinuxPortalRemoteDesktop::start()
 
 void LinuxPortalRemoteDesktop::stop()
 {
+    if (sessionClosedSubscription_ != 0 && portal_.connection() != nullptr) {
+        g_dbus_connection_signal_unsubscribe(portal_.connection(),
+                                             sessionClosedSubscription_);
+        sessionClosedSubscription_ = 0;
+    }
+    if (portalNameWatch_ != 0) {
+        g_bus_unwatch_name(portalNameWatch_);
+        portalNameWatch_ = 0;
+    }
     if (!sessionHandle_.empty() && portal_.connection() != nullptr) {
         GError* error = nullptr;
         GVariant* reply = g_dbus_connection_call_sync(
@@ -63,12 +80,27 @@ void LinuxPortalRemoteDesktop::stop()
     streams_.clear();
     selectedDevices_ = 0;
     sessionHandle_.clear();
+    portalNameSeen_ = false;
+    sessionClosed_ = false;
+    failureMessage_.clear();
     portal_.close();
 }
 
 bool LinuxPortalRemoteDesktop::isStarted() const
 {
     return !sessionHandle_.empty();
+}
+
+bool LinuxPortalRemoteDesktop::isHealthy() const
+{
+    return isStarted() && !sessionClosed_;
+}
+
+std::string LinuxPortalRemoteDesktop::failureMessage() const
+{
+    return failureMessage_.empty()
+        ? "The Wayland remote-desktop portal session closed unexpectedly."
+        : failureMessage_;
 }
 
 OperationResult LinuxPortalRemoteDesktop::movePointerAbsolute(int x, int y)
@@ -136,11 +168,64 @@ OperationResult LinuxPortalRemoteDesktop::setKeyboardKeysym(std::uint32_t keysym
                       static_cast<int>(keysym), pressed ? 1U : 0U));
 }
 
+OperationResult LinuxPortalRemoteDesktop::captureDesktop(
+    const std::filesystem::path& outputPath)
+{
+    if (!isStarted()) {
+        return {false, "The Wayland remote-desktop portal session is not active."};
+    }
+    int descriptor = -1;
+    OperationResult result = openPipeWireRemote(descriptor);
+    if (!result.success) {
+        return result;
+    }
+    std::vector<LinuxPipeWireStream> captureStreams;
+    captureStreams.reserve(streams_.size());
+    for (const Stream& stream : streams_) {
+        captureStreams.push_back({stream.nodeId, stream.hasPosition, stream.x, stream.y,
+                                  stream.hasSize, stream.width, stream.height});
+    }
+    LinuxPipeWireCapture capture;
+    return capture.captureDesktop(descriptor, captureStreams, outputPath);
+}
+
 GVariant* LinuxPortalRemoteDesktop::emptyOptions()
 {
     GVariantBuilder builder;
     g_variant_builder_init(&builder, G_VARIANT_TYPE_VARDICT);
     return g_variant_builder_end(&builder);
+}
+
+void LinuxPortalRemoteDesktop::handleSessionClosed(
+    GDBusConnection*, const gchar*, const gchar*, const gchar*, const gchar*, GVariant*,
+    gpointer userData)
+{
+    auto* self = static_cast<LinuxPortalRemoteDesktop*>(userData);
+    if (self == nullptr) {
+        return;
+    }
+    self->sessionClosed_ = true;
+    self->failureMessage_ = "The Wayland remote-desktop portal session was closed.";
+}
+
+void LinuxPortalRemoteDesktop::handlePortalAppeared(GDBusConnection*, const gchar*,
+                                                      const gchar*, gpointer userData)
+{
+    auto* self = static_cast<LinuxPortalRemoteDesktop*>(userData);
+    if (self != nullptr) {
+        self->portalNameSeen_ = true;
+    }
+}
+
+void LinuxPortalRemoteDesktop::handlePortalVanished(GDBusConnection*, const gchar*,
+                                                      gpointer userData)
+{
+    auto* self = static_cast<LinuxPortalRemoteDesktop*>(userData);
+    if (self == nullptr || !self->portalNameSeen_ || !self->isStarted()) {
+        return;
+    }
+    self->sessionClosed_ = true;
+    self->failureMessage_ = "The Wayland desktop portal service stopped.";
 }
 
 OperationResult LinuxPortalRemoteDesktop::createSession()
@@ -161,15 +246,16 @@ OperationResult LinuxPortalRemoteDesktop::createSession()
     if (!result.success) {
         return result;
     }
-    const char* handle = nullptr;
-    const bool found = g_variant_lookup(results, "session_handle", "&o", &handle) != FALSE;
-    if (found && handle != nullptr) {
-        sessionHandle_ = handle;
-    }
+    readPortalObjectPath(results, "session_handle", sessionHandle_);
     g_variant_unref(results);
     if (sessionHandle_.empty()) {
         return {false, "The Wayland portal did not return a remote-desktop session handle."};
     }
+    sessionClosedSubscription_ = g_dbus_connection_signal_subscribe(
+        portal_.connection(), "org.freedesktop.portal.Desktop",
+        "org.freedesktop.portal.Session", "Closed", sessionHandle_.c_str(), nullptr,
+        G_DBUS_SIGNAL_FLAGS_NONE, &LinuxPortalRemoteDesktop::handleSessionClosed,
+        this, nullptr);
     return {true, {}};
 }
 
@@ -226,8 +312,17 @@ OperationResult LinuxPortalRemoteDesktop::startSession()
     OperationResult result = portal_.callRequest(
         "org.freedesktop.portal.RemoteDesktop", "Start",
         g_variant_new("(os@a{sv})", sessionHandle_.c_str(), "",
-                      g_variant_builder_end(&options)), token, results, 120000);
+                      g_variant_builder_end(&options)), token, results, 60000);
     if (!result.success) {
+        if (result.message == "The desktop portal request timed out.") {
+            return {false, "authorization_timeout: The Wayland remote-desktop authorization was "
+                           "not confirmed within 60 seconds."};
+        }
+        if (result.message == "The desktop portal request was cancelled."
+            || result.message == "The desktop portal request was denied.") {
+            return {false, "authorization_denied: The Wayland remote-desktop authorization was "
+                           "cancelled or denied."};
+        }
         return result;
     }
     if (g_variant_lookup(results, "devices", "u", &selectedDevices_) == FALSE) {
@@ -238,6 +333,48 @@ OperationResult LinuxPortalRemoteDesktop::startSession()
     if (streams_.empty()) {
         return {false, "The Wayland portal did not return a monitor stream for absolute input."};
     }
+    return {true, {}};
+}
+
+OperationResult LinuxPortalRemoteDesktop::openPipeWireRemote(int& descriptor)
+{
+    descriptor = -1;
+    GUnixFDList* descriptors = nullptr;
+    GError* error = nullptr;
+    GVariant* reply = g_dbus_connection_call_with_unix_fd_list_sync(
+        portal_.connection(), "org.freedesktop.portal.Desktop",
+        "/org/freedesktop/portal/desktop", "org.freedesktop.portal.ScreenCast",
+        "OpenPipeWireRemote",
+        g_variant_new("(o@a{sv})", sessionHandle_.c_str(), emptyOptions()),
+        G_VARIANT_TYPE("(h)"), G_DBUS_CALL_FLAGS_NONE, 5000, nullptr, &descriptors,
+        nullptr, &error);
+    if (reply == nullptr) {
+        const std::string detail = error != nullptr && error->message != nullptr
+            ? error->message
+            : "unknown error";
+        g_clear_error(&error);
+        if (descriptors != nullptr) {
+            g_object_unref(descriptors);
+        }
+        return {false, "Unable to open the authorized PipeWire remote: " + detail + "."};
+    }
+    gint32 descriptorIndex = -1;
+    g_variant_get(reply, "(h)", &descriptorIndex);
+    g_variant_unref(reply);
+    descriptor = descriptors == nullptr
+        ? -1
+        : g_unix_fd_list_get(descriptors, descriptorIndex, &error);
+    if (descriptors != nullptr) {
+        g_object_unref(descriptors);
+    }
+    if (descriptor < 0) {
+        const std::string detail = error != nullptr && error->message != nullptr
+            ? error->message
+            : "the portal did not return a valid descriptor";
+        g_clear_error(&error);
+        return {false, "Unable to read the authorized PipeWire descriptor: " + detail + "."};
+    }
+    g_clear_error(&error);
     return {true, {}};
 }
 

@@ -61,7 +61,7 @@ chroot "$rootfs" /usr/bin/env DEBIAN_FRONTEND=noninteractive apt-get update
 chroot "$rootfs" /usr/bin/env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libc6-dev libstdc++-11-dev pkg-config \
     libx11-dev libxext-dev libjpeg-dev libpng-dev libglib2.0-dev \
-    libxtst6 libxrandr2
+    libpipewire-0.3-dev libxtst6 libxrandr2
 
 touch "$ready_marker"
 printf 'AArch64 sysroot is ready: %s\n' "$rootfs"
