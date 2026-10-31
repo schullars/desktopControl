@@ -1,0 +1,67 @@
+diff --git a/flutter/android/app/build.gradle b/flutter/android/app/build.gradle
+index 07f029c..22401ab 100644
+--- a/flutter/android/app/build.gradle
++++ b/flutter/android/app/build.gradle
+@@ -130,6 +130,7 @@ flutter {
+ }
+ 
+ dependencies {
++    implementation files('libs/desktopctl-android.aar')
+     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+     implementation 'com.google.protobuf:protobuf-javalite:3.20.1'
+     implementation "androidx.media:media:1.6.0"
+diff --git a/flutter/android/app/src/main/kotlin/com/carriez/flutter_hbb/MainService.kt b/flutter/android/app/src/main/kotlin/com/carriez/flutter_hbb/MainService.kt
+index 473fead..7c34eb0 100644
+--- a/flutter/android/app/src/main/kotlin/com/carriez/flutter_hbb/MainService.kt
++++ b/flutter/android/app/src/main/kotlin/com/carriez/flutter_hbb/MainService.kt
+@@ -1,6 +1,7 @@
+ package com.carriez.flutter_hbb
+ 
+ import ffi.FFI
++import com.carriez.flutter_hbb.desktopctl.DesktopCtlRustDeskBridge
+ 
+ /**
+  * Capture screen,get video and audio,send to rust.
+@@ -62,6 +63,17 @@ const val VIDEO_KEY_BIT_RATE = 1024_000
+ const val VIDEO_KEY_FRAME_RATE = 30
+ 
+ class MainService : Service() {
++    private var desktopCtlBridge: DesktopCtlRustDeskBridge? = null
++
++    @Keep
++    fun rustDesktopCtlExecute(commandLine: String): String {
++        return desktopCtlBridge?.execute(commandLine)
++            ?: JSONObject()
++                .put("exitCode", 3)
++                .put("stdout", "")
++                .put("stderr", "The Android DesktopCTL bridge is unavailable.")
++                .toString()
++    }
+ 
+     @Keep
+     @RequiresApi(Build.VERSION_CODES.N)
+@@ -240,6 +252,7 @@ class MainService : Service() {
+         super.onCreate()
+         Log.d(logTag,"MainService onCreate, sdk int:${Build.VERSION.SDK_INT} reuseVirtualDisplay:$reuseVirtualDisplay")
+         FFI.init(this)
++        desktopCtlBridge = DesktopCtlRustDeskBridge(this, "0.10.0")
+         HandlerThread("Service", Process.THREAD_PRIORITY_BACKGROUND).apply {
+             start()
+             serviceLooper = looper
+@@ -259,6 +272,8 @@ class MainService : Service() {
+     }
+ 
+     override fun onDestroy() {
++        desktopCtlBridge?.close()
++        desktopCtlBridge = null
+         checkMediaPermission()
+         stopService(Intent(this, FloatingWindowService::class.java))
+         super.onDestroy()
+@@ -405,6 +420,7 @@ class MainService : Service() {
+                             // If not call acquireLatestImage, listener will not be called again
+                             imageReader.acquireLatestImage().use { image ->
+                                 if (image == null || !isStart) return@setOnImageAvailableListener
++                                desktopCtlBridge?.onImage(image)
+                                 val planes = image.planes
+                                 val buffer = planes[0].buffer
+                                 buffer.rewind()

@@ -1,14 +1,16 @@
 # DesktopCTL
 
-DesktopCTL is a C++17 command-line desktop automation tool for Windows and Ubuntu 22.04. It
-controls pointer and keyboard input, discovers and launches applications, inspects and activates
-windows where the display protocol permits it, captures screenshots, and displays a visible green
-per-monitor activity border and pointer halo while automation is active.
+DesktopCTL is a desktop automation tool for Windows, Ubuntu 22.04, and an isolated Android host
+library. It controls pointer and keyboard input, discovers and launches applications, inspects and
+activates windows where the platform permits it, captures screenshots, and displays a visible green
+activity border and pointer halo while automation is active.
 
 The Windows executable remains a single statically linked EXE. The Linux backend uses the native
 desktop libraries supplied by Ubuntu. Platform code is isolated under `src/platform/windows` and
 `src/platform/linux`; command parsing, MCP transport, JSON results, and public business contracts
-are shared.
+are shared. Android is packaged separately as `desktopctl-android.aar`; its command engine has no
+RustDesk dependency, and a narrow adapter under `android/rustdesk-integration` owns RustDesk-only
+capture, accessibility, and transport references.
 
 ## Platform capability matrix
 
@@ -115,6 +117,34 @@ dependencies.
 Wayland sessions also require XWayland, `xdg-desktop-portal`, and the desktop environment's portal
 backend, such as the GNOME or KDE implementation. Standard Ubuntu Desktop and Kubuntu installations
 normally provide these components.
+
+### Android AAR
+
+Install JDK 17 and Android SDK Platform 34, then build the isolated library:
+
+```bash
+cd android
+./gradlew testDebugUnitTest assembleRelease lintRelease
+```
+
+Run the Android framework tests on a booted API 34 emulator or device:
+
+```bash
+./gradlew assembleDebugAndroidTest
+adb install -r desktopctl-android/build/outputs/apk/androidTest/debug/desktopctl-android-debug-androidTest.apk
+adb shell am instrument -w \
+  com.schullars.desktopctl.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+The release artifact is
+`android/desktopctl-android/build/outputs/aar/desktopctl-android-release.aar`. It contains Java byte
+code and Android resources, so the same AAR can be embedded in arm64-v8a and x86_64 host APKs. Host
+native libraries, including RustDesk, still need a matching ABI build.
+
+The AAR runs in the host application process. It uses the host cache directory for screenshots,
+requires the host's already authorized MediaProjection and accessibility service, and never starts
+an Android system shell. See `android/rustdesk-integration/README.md` for the adapter contract and
+the exact RustDesk transport compatibility requirement.
 
 ## Command summary
 
@@ -297,3 +327,5 @@ screen captures by design so users can see that automation is active.
 - `ActivityIndicator` owns the visible indicator, session gate, IPC, and idle timeout.
 - `src/platform/windows` isolates Win32, GDI, Shell, COM, and `SendInput` details.
 - `src/platform/linux` isolates X11/XTest, GIO, XDG Desktop Portal, image codecs, and Unix IPC.
+- `android/desktopctl-android` contains the RustDesk-independent Android command engine and host API.
+- `android/rustdesk-integration` contains only the RustDesk-specific Android adapter source.

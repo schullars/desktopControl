@@ -7,6 +7,9 @@
 /Testing/
 /cmake_install.cmake
 /install_manifest.txt
+/android/.gradle/
+/android/**/build/
+/android/local.properties
 
 # Compiled binaries and debug data
 *.dll
