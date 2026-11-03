@@ -69,6 +69,8 @@ final class HelpText {
                 + "RustDesk requirements:\n"
                 + "  Start RustDesk screen capture and enable RustDesk Input accessibility before session start.\n"
                 + "  The embedded command module reuses those services and does not request a second projection.\n"
+                + "  DesktopCTL is generic UI automation and is not bound to any particular application. It does\n"
+                + "  not read process internals, create dumps, terminate processes, or restart failed processes.\n"
                 + "\n"
                 + "Examples:\n"
                 + "  desktopctl session start\n"

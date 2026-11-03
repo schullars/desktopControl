@@ -5,6 +5,7 @@ cmake_policy(SET CMP0091 NEW)
 project(desktopctl VERSION 0.10.0 LANGUAGES CXX)
 
 option(DESKTOPCTL_BUILD_TESTS "Build desktopctl smoke tests" ON)
+option(DESKTOPCTL_WINDOWS_UIACCESS "Embed the signed installed Windows UIAccess manifest" ON)
 
 add_executable(desktopctl)
 
@@ -115,6 +116,13 @@ if(MSVC)
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
     )
     target_compile_options(desktopctl PRIVATE /W4 /permissive- /utf-8)
+    if(DESKTOPCTL_WINDOWS_UIACCESS)
+        target_link_options(desktopctl PRIVATE
+            /MANIFEST:EMBED
+            /MANIFESTUAC:NO
+            "/MANIFESTINPUT:${CMAKE_CURRENT_SOURCE_DIR}/res/windows/desktopctl.manifest"
+        )
+    endif()
 else()
     target_compile_options(desktopctl PRIVATE -Wall -Wextra -Wpedantic)
 endif()

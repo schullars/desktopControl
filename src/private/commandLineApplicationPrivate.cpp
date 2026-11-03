@@ -492,9 +492,13 @@ Examples:
   desktopctl session stop
 
 Limitations:
-  Input targets the interactive desktop and focused window. A normal process cannot control a
-  higher-integrity window, the UAC secure desktop, or a locked screen. Confirm target state before
-  click, type, hotkey, and app open operations.
+  Input targets the interactive desktop and focused window. On Windows, the signed installed build
+  can use UIAccess to automate ordinary and elevated applications on that desktop. A portable or
+  unsigned build cannot cross the Windows integrity boundary. No build can automate the UAC secure
+  desktop or a locked screen. Confirm target state before click, type, hotkey, and app open
+  operations. DesktopCTL is generic desktop automation: it does not bind to a particular product,
+  read process internals, create process dumps, terminate processes, or restart failed processes.
+  Use RustDesk Terminal CLI typed privileged diagnostics for those service-brokered operations.
 )HELP";
 }
 
