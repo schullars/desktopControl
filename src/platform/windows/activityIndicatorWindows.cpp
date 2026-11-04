@@ -1,6 +1,7 @@
 #include "private/activityIndicatorPrivate.h"
 
 #include <Windows.h>
+#include <Shellapi.h>
 
 #include <algorithm>
 #include <cmath>
@@ -79,13 +80,37 @@ OperationResult ActivityIndicatorPrivate::startBackground(bool keepAlive)
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
     PROCESS_INFORMATION process{};
+    HANDLE backgroundProcess = nullptr;
     if (CreateProcessW(executablePath.c_str(), commandLine.data(), nullptr, nullptr, FALSE,
                        CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, nullptr, nullptr,
                        &startup, &process)
         == FALSE) {
-        return {false,
-                "Unable to start the background session process. Win32 error "
-                    + std::to_string(static_cast<unsigned long>(GetLastError())) + "."};
+        const DWORD createError = GetLastError();
+        if (createError != ERROR_ELEVATION_REQUIRED) {
+            return {false,
+                    "Unable to start the background session process. Win32 error "
+                        + std::to_string(static_cast<unsigned long>(createError)) + "."};
+        }
+
+        std::wstring parameters = L"session host";
+        if (keepAlive) {
+            parameters += L" --keep-alive";
+        }
+        SHELLEXECUTEINFOW shellExecute{};
+        shellExecute.cbSize = sizeof(shellExecute);
+        shellExecute.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI;
+        shellExecute.lpFile = executablePath.c_str();
+        shellExecute.lpParameters = parameters.c_str();
+        shellExecute.nShow = SW_HIDE;
+        if (ShellExecuteExW(&shellExecute) == FALSE || shellExecute.hProcess == nullptr) {
+            return {false,
+                    "Unable to start the UIAccess background session process. Win32 error "
+                        + std::to_string(static_cast<unsigned long>(GetLastError())) + "."};
+        }
+        backgroundProcess = shellExecute.hProcess;
+    } else {
+        CloseHandle(process.hThread);
+        backgroundProcess = process.hProcess;
     }
 
     bool ready = false;
@@ -95,13 +120,12 @@ OperationResult ActivityIndicatorPrivate::startBackground(bool keepAlive)
             ready = true;
             break;
         }
-        if (WaitForSingleObject(process.hProcess, 20) == WAIT_OBJECT_0) {
-            GetExitCodeProcess(process.hProcess, &exitCode);
+        if (WaitForSingleObject(backgroundProcess, 20) == WAIT_OBJECT_0) {
+            GetExitCodeProcess(backgroundProcess, &exitCode);
             break;
         }
     }
-    CloseHandle(process.hThread);
-    CloseHandle(process.hProcess);
+    CloseHandle(backgroundProcess);
 
     if (!ready) {
         return {false,
