@@ -163,6 +163,11 @@ if(DESKTOPCTL_BUILD_TESTS)
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/test/mcpLifecycle.cmake"
         )
         if(WIN32)
+            add_executable(desktopctl_print_window_tests test/printWindowCompatibilityTests.cpp)
+            target_include_directories(desktopctl_print_window_tests PRIVATE src)
+            target_compile_features(desktopctl_print_window_tests PRIVATE cxx_std_17)
+            target_link_libraries(desktopctl_print_window_tests PRIVATE user32)
+            add_test(NAME desktopctl_print_window_compatibility COMMAND desktopctl_print_window_tests)
             add_executable(desktopctl_keyboard_input_tests
                 test/keyboardInputWindowsTests.cpp
                 src/platform/windows/private/keyboardInputWindows.cpp

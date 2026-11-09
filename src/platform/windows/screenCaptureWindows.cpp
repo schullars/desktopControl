@@ -1,3 +1,4 @@
+#include "platform/windows/private/printWindowCompatibility.h"
 #include "private/screenCapturePrivate.h"
 
 #include "platform/windows/windowsText.h"
@@ -611,8 +612,12 @@ ScreenshotResult ScreenCapturePrivate::captureWindowTarget(
     }
 
     OperationResult operation;
-    if (PrintWindow(window, memoryDc, PW_RENDERFULLCONTENT) == FALSE) {
-        operation = windowsFailure("PrintWindow");
+    std::string printError;
+    if (!printWindowCompatible(
+            [&](UINT flags) { return PrintWindow(window, memoryDc, flags) != FALSE; },
+            [&] { return PatBlt(memoryDc, 0, 0, width, height, BLACKNESS) != FALSE; },
+            printError)) {
+        operation = {false, printError};
     } else {
         std::vector<std::uint8_t> pixels;
         operation = readBitmap(memoryDc, bitmap, width, height, pixels);
