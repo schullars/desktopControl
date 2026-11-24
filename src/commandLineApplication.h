@@ -23,6 +23,8 @@ public:
     /// Parses and executes one command.
     /// </summary>
     /// <param name="arguments">UTF-8 arguments with the executable name at index zero.</param>
+    /// <remarks>A leading --result-file PATH publishes one UTF-8 JSON result without
+    /// changing session or permission checks. The destination must not already exist.</remarks>
     /// <returns>0 on success, 2 for invalid arguments, or 3 for an operation failure.</returns>
     int run(const std::vector<std::string>& arguments);
 

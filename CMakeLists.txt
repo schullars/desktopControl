@@ -25,6 +25,8 @@ target_sources(desktopctl
         src/screenCapture.h
         src/private/commandLineApplicationPrivate.cpp
         src/private/commandLineApplicationPrivate.h
+        src/private/commandResultFile.cpp
+        src/private/commandResultFile.h
         src/private/jsonCodec.cpp
         src/private/jsonCodec.h
         src/private/jsonValue.cpp
@@ -130,6 +132,33 @@ endif()
 if(DESKTOPCTL_BUILD_TESTS)
     include(CTest)
     if(BUILD_TESTING)
+        add_executable(desktopctl_result_file_tests
+            test/commandResultFileTests.cpp
+            src/private/commandResultFile.cpp
+            src/private/jsonCodec.cpp
+            src/private/jsonValue.cpp
+        )
+        target_include_directories(desktopctl_result_file_tests PRIVATE src)
+        target_compile_features(desktopctl_result_file_tests PRIVATE cxx_std_17)
+        if(MSVC)
+            target_compile_definitions(desktopctl_result_file_tests PRIVATE
+                NOMINMAX UNICODE _UNICODE WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00
+            )
+            set_property(TARGET desktopctl_result_file_tests PROPERTY
+                MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+            )
+            target_compile_options(desktopctl_result_file_tests PRIVATE /W4 /permissive- /utf-8)
+        else()
+            target_compile_options(desktopctl_result_file_tests PRIVATE -Wall -Wextra -Wpedantic)
+        endif()
+        add_test(NAME desktopctl_result_file_component COMMAND desktopctl_result_file_tests)
+        add_test(NAME desktopctl_result_file_lifecycle
+            COMMAND ${CMAKE_COMMAND}
+                "-DDESKTOPCTL_EXE=$<TARGET_FILE:desktopctl>"
+                "-DDESKTOPCTL_TEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/test"
+                "-DDESKTOPCTL_EMULATOR=${CMAKE_CROSSCOMPILING_EMULATOR}"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/test/resultFileLifecycle.cmake"
+        )
         add_test(NAME desktopctl_help COMMAND desktopctl --help)
         add_test(NAME desktopctl_help_uppercase COMMAND desktopctl -H)
         add_test(NAME desktopctl_help_window_activate COMMAND desktopctl -H)

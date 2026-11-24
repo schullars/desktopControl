@@ -2,6 +2,24 @@
 
 This file records planned work only. A task is not implemented, built, or verified until its status is updated with corresponding evidence.
 
+## DESK-003 - Generic single-command result-file transport
+
+- Status: Implemented; Windows regression passed; complete integration validation pending
+- Scope:
+  - Add a leading `--result-file PATH` CLI option using the existing JSON codec.
+  - Publish schema version 1 with `schemaVersion`, `exitCode`, `stdout`, and `stderr`.
+  - Preserve ordinary CLI/MCP behavior, session gating, detached session ownership, and privileges.
+  - Reject existing destinations and prepare writable output before executing desktop operations.
+  - Keep command-result persistence module-private and independent of any remote-control product.
+- Acceptance criteria:
+  - Component tests cover UTF-8 paths/text, JSON escaping, exit codes, stream restoration,
+    existing destinations, symlinks, abandoned invocations, and publication races.
+  - CLI tests cover ordinary/result-file help equivalence, malformed options, unsupported
+    long-running entry points, missing commands, and destination failures.
+  - Existing platform tests and real signed Windows UIAccess remote-command integration pass.
+  - Push only the reviewed and tested change to GitHub main; do not create a pull request.
+- Evidence and remaining verification: `docs/result-file-validation.md`.
+
 ## DESK-001 - Wayland overlay transparency and thin-border fallback
 
 - Status: Completed

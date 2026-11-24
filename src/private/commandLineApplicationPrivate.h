@@ -16,6 +16,8 @@ public:
     int run(const std::vector<std::string>& arguments);
 
 private:
+    int runCommand(const std::vector<std::string>& arguments);
+    int runWithResultFile(const std::vector<std::string>& arguments);
     static std::string lowerCopy(const std::string& value);
     static std::optional<int> parseInteger(const std::string& value);
     static std::optional<MouseButton> parseMouseButton(const std::string& value);

@@ -1,14 +1,59 @@
 #include "commandLineApplicationPrivate.h"
 
+#include "commandResultFile.h"
+
 #include <algorithm>
 #include <charconv>
 #include <cctype>
+#include <exception>
 #include <iostream>
 #include <limits>
 
 namespace desktopctl {
 
 int CommandLineApplicationPrivate::run(const std::vector<std::string>& arguments)
+{
+    if (arguments.size() > 1U && arguments[1] == "--result-file") {
+        return runWithResultFile(arguments);
+    }
+    return runCommand(arguments);
+}
+
+int CommandLineApplicationPrivate::runWithResultFile(const std::vector<std::string>& arguments)
+{
+    if (arguments.size() < 3U || arguments[2].empty()) {
+        std::cerr << "--result-file requires a nonempty output path before the command.\n";
+        return 2;
+    }
+    CommandResultFile result;
+    std::string error;
+    if (!result.begin(arguments[2], error)) {
+        std::cerr << error << '\n';
+        return 3;
+    }
+    int exitCode = 3;
+    try {
+        std::vector<std::string> command{arguments.front()};
+        command.insert(command.end(), arguments.begin() + 3, arguments.end());
+        // These streaming/internal entry points do not have a single bounded command result.
+        if (command.size() > 1U && command[1] == "--result-file") {
+            std::cerr << "--result-file may be specified only once before the command.\n";
+            exitCode = 2;
+        } else if (command.size() > 2U
+            && ((lowerCopy(command[1]) == "mcp" && lowerCopy(command[2]) == "serve")
+                || (lowerCopy(command[1]) == "session" && lowerCopy(command[2]) == "host"))) {
+            std::cerr << "--result-file is not supported for mcp serve or session host.\n";
+            exitCode = 2;
+        } else {
+            exitCode = runCommand(command);
+        }
+    } catch (const std::exception&) {
+        std::cerr << "Command execution failed with an exception.\n";
+    }
+    return result.finish(exitCode);
+}
+
+int CommandLineApplicationPrivate::runCommand(const std::vector<std::string>& arguments)
 {
     if (arguments.size() < 2) {
         printUsage();
@@ -152,8 +197,15 @@ void CommandLineApplicationPrivate::printUsage()
 
 Usage:
   desktopctl <command> [arguments]
+  desktopctl --result-file OUTPUT.json <command> [arguments]
 
 General options:
+  --result-file OUTPUT.json
+      Write a UTF-8 JSON result with schemaVersion=1, exitCode, stdout, and stderr. Put this option
+      before a single CLI command; it does not bypass session or permission checks. The destination
+      must not exist and its parent directory must already exist. Output is buffered until the
+      command completes, then replayed to the console and atomically published without overwriting
+      files. Result-file failures return 3. Not supported for mcp serve or internal session host.
   -H, -h, --help, help
       Show this complete help text. Help is the only command that never requires a session.
   --version, version

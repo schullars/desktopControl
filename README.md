@@ -184,6 +184,37 @@ desktopctl app open ID_OR_NAME
 desktopctl mcp serve
 ```
 
+## Single-command result files
+
+Use a result file when launching a CLI command through an API that cannot redirect the child's
+console streams (for example, Windows ShellExecute with a signed installed UIAccess executable):
+
+```text
+desktopctl --result-file "C:\Temp\unique-result.json" -h
+desktopctl --result-file "/tmp/unique-start.json" session start
+```
+
+The option must precede one ordinary CLI command. It does not grant privileges or bypass the
+mandatory session gate. The destination must not already exist, and its parent directory must
+already exist and be writable. DesktopCTL reserves a private sibling file before executing the
+command, then atomically publishes a complete UTF-8 JSON object without replacing an existing
+file or following a destination symlink. Callers should use a private directory and a fresh path
+for each invocation, wait for process completion, validate the schema and exit code, then remove
+their result files. Linux result files have mode `0600`; Windows inherits the parent directory ACL.
+
+```json
+{"schemaVersion":1,"exitCode":0,"stdout":"command output\n","stderr":""}
+```
+
+`stdout` and `stderr` preserve the command's UTF-8 text, including JSON escaping. Console output is
+buffered during this mode and replayed after the command completes. The process returns the same
+exit code as `exitCode`, including failed commands. Invalid result-file syntax returns `2`; failure
+to prepare, write, or publish the result returns `3` and may leave no result file. A missing command
+or unsupported `mcp serve` / internal `session host` entry point produces an error envelope with
+exit code `2`. The detached host launched by `session start` does not inherit the result-file option
+or its non-inheritable pending-file handle. Invocations without the option retain their existing
+CLI and MCP behavior. This is a generic CLI output contract, not a RustDesk-specific transport.
+
 ## Mandatory session lifecycle
 
 Help (`-H`, `-h`, `--help`, or `help`) is always available. Every other desktop command is
